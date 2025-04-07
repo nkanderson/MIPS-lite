@@ -1,3 +1,9 @@
+# Build files
+/build/
+/out/
+# Visual Studio Code
+/.vscode/
+
 # Prerequisites
 *.d
 
