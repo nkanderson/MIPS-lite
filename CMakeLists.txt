@@ -1,16 +1,13 @@
+### Root CMakeLists.txt for MIPS-Lite project
 cmake_minimum_required(VERSION 3.15)
+
+# Always define toolchain file so we have same setup
+set(CMAKE_TOOLCHAIN_FILE "${CMAKE_SOURCE_DIR}/cmake/toolchain.cmake")
+
 project(MIPS-Lite VERSION 0.1.0 LANGUAGES CXX)
 
 # Cmakes built in test runner
 include(CTest)
-
-# Always define toolchain file so we have same setup
-if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
-    message(STATUS "CMAKE_TOOLCHAIN_FILE is not defined. Using default.")
-    set(CMAKE_TOOLCHAIN_FILE "${CMAKE_SOURCE_DIR}/cmake/toolchain.cmake")
-else()
-    message(STATUS "CMAKE_TOOLCHAIN_FILE is defined as: ${CMAKE_TOOLCHAIN_FILE}")
-endif()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 

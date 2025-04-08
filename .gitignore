@@ -2,7 +2,7 @@
 /build/
 /out/
 # Visual Studio Code
-/.vscode/
+.vscode/
 
 # Prerequisites
 *.d
