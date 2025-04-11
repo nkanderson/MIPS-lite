@@ -3,6 +3,7 @@
 /out/
 # Visual Studio Code
 .vscode/
+**/compile_commands.json
 
 # Prerequisites
 *.d
