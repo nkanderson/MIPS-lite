@@ -21,7 +21,7 @@ namespace mips_lite {
 enum class InstructionType { R_TYPE, I_TYPE };
 
 // Instruction Category Types
-enum class InstructionCategory { ARITHMETIC, LOGICAL, MEMORY_ACCESS, CONTROL_FLOW, HALT };
+enum class InstructionCategory { ARITHMETIC, LOGICAL, MEMORY_ACCESS, CONTROL_FLOW };
 
 // Opcode Definitions
 namespace opcode {
@@ -53,9 +53,9 @@ constexpr uint8_t HALT = 0b010001;  // 17
 }  // namespace opcode
 
 // Register Constants
-constexpr int NUM_REGISTERS = 32;
+constexpr uint8_t NUM_REGISTERS = 32;
 // Memory Constants
-constexpr uint32_t WORD_SIZE = 4;  // 4 bytes per word
+constexpr uint8_t WORD_SIZE = 4;  // 4 bytes per word
 
 // Pipeline Stage Definitions
 enum class PipelineStage { FETCH, DECODE, EXECUTE, MEMORY, WRITEBACK };
