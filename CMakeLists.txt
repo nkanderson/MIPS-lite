@@ -40,6 +40,9 @@ set(SOURCE_FILES
 # Create the library that will be used by tests and main executable
 add_library(mips_lite_lib ${SOURCE_FILES})
 
+add_library(stats STATIC source/stats.cpp)
+target_include_directories(stats PUBLIC ${CMAKE_SOURCE_DIR}/include)
+
 # Create main binary target (will add actual source files later)
 # add_executable(mips_simulator src/main.cpp)
 
