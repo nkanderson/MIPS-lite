@@ -24,9 +24,12 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 # Include directories will go here as you add them
 # include_directories(include)
 
+add_library(stats STATIC source/stats.cpp)
+target_include_directories(stats PUBLIC ${CMAKE_SOURCE_DIR}/include)
+
 # Create main binary target (will add actual source files later)
 # add_executable(mips_simulator src/main.cpp)
 
 # Enable testing
 enable_testing()
-add_subdirectory(tests/proj-setup)
+add_subdirectory(tests)
