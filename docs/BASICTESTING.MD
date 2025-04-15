@@ -9,7 +9,11 @@ For basic testing, 4 categories will be tested:
 **For R-type:**    These cases will require loading the appropriate values into two registers
 and performing the operation that is stated. The result is stored in another register.
 
-**For I-type:**   These cases will require loading the appropriate value into one register and apply the appropriate immediate using the operation that is stated. The result is stored in another register.
+**For I-type:**   These cases will require loading the appropriate value into one register and applying the appropriate immediate using the operation that is stated. The result is stored in another register.
+
+### TODO:
+- Need to consider pipelining to tests (Ex: Encountering a jump, need to have instructions upstream to point to NOP)
+- Need to consider testing odd/edge cases
 
 ## Arithmetic Instructions
 
@@ -52,11 +56,29 @@ These are the cases that we will implement for testing arithmetic instructions.
  
 ## Memory Access Instructions
       7. LDW
+         a. Add Rs to Imm to generate address
+            - Maybe reuse ADDI function here?
+         b. Access address in memory (32-bit) and store contents into Rt
+         c. Confirm that data obtained in memory is present in Rt
       8. STW
+         a. Add Rs to Imm to generate address
+            - Maybe reuse ADDI function here?
+         b. Load contents stored in Rt (32-bits) to memory pointed by the address
+         c. Confirm that data contained in Rt is stored at the right location in memory
 
 ## Control Flow Instructions
-      9.  BZ
+      9.  BZ (Rt is not used)
+          a.  If Rs is 0:
+            - Branch to the xth instruction from current instruction
+          b. If Rs is not 0:
+            - Continue to next instruction as normal
       10. BEQ
-      11. JR
-      12. HALT
+          a.  If Rs and Rt are equal:
+            - Branch to the xth instruction from current instruction
+          b.  If Rs and Rt are not equal:
+            - Continue to next instruction as normal
+      1.  JR
+          a.  Jump to the location pointed by contents of Rs
+      2.  HALT
+          a.  If halt is encountered, program should halt execution.
 
