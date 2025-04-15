@@ -32,4 +32,4 @@ target_include_directories(stats PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
 # Enable testing
 enable_testing()
-add_subdirectory(tests/proj-setup)
+add_subdirectory(tests)
