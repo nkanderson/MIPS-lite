@@ -3,327 +3,197 @@
 #include <sys/types.h>
 
 #include <cstdint>
-#include <iomanip>  // Add this for std::setw and std::setfill
+#include <fstream>
+#include <iomanip>
 #include <iostream>
-#include <sstream>  // Add this for std::stringstream
+#include <sstream>
 #include <stdexcept>
 #include <string>
-
-// TODO: We need to first copy the file so we aren't writting to a test case. Therefore, we have an
-// input and output file
+#include <vector>
 
 /**
- * @brief MemoryParser: constructor that dynamically calculates the memory size
- * which shouldn't exceed 4KiB (4096 bytes), per project specs.
- * @param filename: The name/relative path to the file to be parsed
+ * @brief MemoryParser: constructor that reads the entire file into a vector
+ * @param input_filename: The name/relative path to the input file to be parsed
+ * @param output_filename: The name/relative path to the output file (optional)
  * @throws std::runtime_error if the file cannot be opened
  */
-MemoryParser::MemoryParser(const std::string& filename) : filename_(filename) {
-    // Open file in read/write mode
-    file_.open(filename_, std::ios::in | std::ios::out);
-    if (!file_.is_open()) {
-        throw std::runtime_error("Failed to open file: " + filename_);
+MemoryParser::MemoryParser(const std::string& input_filename, const std::string& output_filename)
+    : input_filename_(input_filename),
+      output_filename_(output_filename.empty() ? input_filename + ".out" : output_filename) {
+    // Open input file in read mode
+    std::ifstream file(input_filename_);
+    if (!file.is_open()) {
+        throw std::runtime_error("Failed to open input file: " + input_filename_);
     }
-    program_counter_ = 0;  // Initialize program counter
 
-    // Count the current number of lines in file
-    uint32_t line_count = 0;
+    // Read file content into memory_content_ vector
     std::string line;
-
-    // Ensure on first line
-    file_.seekg(0, std::ios::beg);
-
-    // Count current lines
-    while (std::getline(file_, line)) {
+    while (std::getline(file, line)) {
         // Trim whitespace
         line.erase(0, line.find_first_not_of(" \t\r\n"));
         line.erase(line.find_last_not_of(" \t\r\n") + 1);
 
         if (!line.empty()) {
-            line_count++;
+            // Convert hex string to uint32_t
+            uint32_t value = 0;
+            std::stringstream ss;
+            ss << std::hex << line;
+            if (!(ss >> value)) {
+                throw std::runtime_error("Failed to parse instruction: " + line);
+            }
+            memory_content_.push_back(value);
         }
     }
 
-    // Check if the file exceeds 4KiB
-    if (line_count > MAX_LINE_COUNT) {
+    if (memory_content_.size() > MAX_VEC_SIZE) {
         throw std::runtime_error("File exceeds maximum memory size of 4KiB");
     }
 
-    // Set the current line count
-    current_line_count_ = line_count;
+    program_counter_ = 0;
+    modified_ = false;
+    write_file_on_modified_ = true;
 
-    // Reset file position to the beginning
-    file_.clear();  // Clear EOF flag
-    file_.seekg(0, std::ios::beg);
+    file.close();
 }
 
 /**
  * MemoryParser destructor
+ * Writes back to output file if content was modified and write_file_on_modified_ is true
  */
 MemoryParser::~MemoryParser() {
-    if (file_.is_open()) {
-        file_.close();
+    if (modified_ && write_file_on_modified_) {
+        writeToFile();
     }
 }
 
 /**
- * @brief Helper method to seek to a specific line efficiently by using the current line position.
- *          We know that the file cannot exceed 4 KiB but it might start with fewer lines. As a side
- *          effect this method will increase the size of the file up to 4 KiB if the target line
- *          number exceeds the current line count.
- * @param lineNumber: The target line number to seek to
+ * @brief Ensures that the vector has enough space for the requested index by resizing vec if
+ *          necessary
+ * @param index: the index that will be requested
  */
-void MemoryParser::seekToLine(uint32_t lineNumber) {
-    uint32_t curr_line_offset = PC_TO_LINE(program_counter_);
-    if (lineNumber == curr_line_offset) {
-        return;
-    }
-
-    if (lineNumber >= MAX_LINE_COUNT) {
+void MemoryParser::ensureIndexExists(uint32_t index) {
+    if (index >= MAX_VEC_SIZE) {
         throw std::runtime_error("Line number exceeds maximum memory size of 4KiB");
     }
-    // Clear any error flags
-    file_.clear();
-    std::streampos currentPos = file_.tellg();
 
-    std::string line;
-
-    if (lineNumber > curr_line_offset) {
-        // Seek forward
-        for (uint32_t i = curr_line_offset; i < lineNumber; ++i) {
-            if (!std::getline(file_, line)) {
-                // If we hit EOF, we need to add zero lines until we reach the target
-                if (file_.eof()) {
-                    int line_diff = lineNumber - current_line_count_;
-                    // Go to end of file to append zero lines
-                    file_.clear();
-                    file_.seekp(0, std::ios::end);
-
-                    // Add zero lines
-                    writeZeroLines(line_diff);
-                    // Update current line count
-                    current_line_count_ += line_diff;
-
-                    // Reset to the beginning and move to the target line
-                    file_.clear();
-                    file_.seekg(0, std::ios::beg);
-                    // Position the cursor right before target line
-                    for (uint32_t k = 0; k < lineNumber - 1; ++k) {
-                        if (!std::getline(file_, line)) {
-                            throw std::runtime_error("Failed to seek to newly added line: " +
-                                                     std::to_string(lineNumber));
-                        }
-                    }
-                    return;
-                } else {
-                    // Some other error occurred
-                    file_.clear();
-                    file_.seekg(currentPos);
-                    throw std::runtime_error("Failed to seek to line: " +
-                                             std::to_string(lineNumber));
-                }
-            }
-        }
-    } else {
-        // Target seek is less than current line
-        file_.seekg(0, std::ios::beg);
-        for (uint32_t i = 0; i < lineNumber; ++i) {
-            if (!std::getline(file_, line)) {
-                file_.clear();
-                file_.seekg(currentPos);
-                throw std::runtime_error("Failed to seek to line: " + std::to_string(lineNumber));
-            }
-        }
+    // Expand the vector if necessary by adding zeros
+    if (index >= memory_content_.size()) {
+        memory_content_.resize(index + 1, 0);
+        current_line_count_ = memory_content_.size();
+        modified_ = true;
     }
 }
 
 /**
- * @brief Helper function expand the file and fill with zeros
+ * @brief Writes memory content to an output file
  */
-void inline MemoryParser::writeZeroLines(uint32_t num_to_add) {
-    for (uint32_t i = 0; i < num_to_add; ++i) {
-        file_ << "00000000" << std::endl;
+void MemoryParser::writeToFile() {
+    std::ofstream file(output_filename_);
+    if (!file.is_open()) {
+        throw std::runtime_error("Failed to open output file for writing: " + output_filename_);
     }
 
-    file_.flush();
+    // Write each memory line as an 8-digit hex string
+    for (const auto& value : memory_content_) {
+        std::stringstream ss;
+        ss << std::uppercase << std::hex << std::setw(8) << std::setfill('0') << value;
+        file << ss.str() << std::endl;
+    }
+
+    file.close();
+    modified_ = false;  // Reset modified flag
 }
 
 /**
- * @brief Reads the next line from the file and converts it to a 32-bit instruction
- * @return The 32-bit instruction read from the file
- * @throws std::runtime_error if file reading fails or end of file is reached
+ * @brief Reads the next instruction from memory and advances the program counter
+ * @return uint32_t instruction read from memory
  */
 uint32_t MemoryParser::readNextInstruction() {
-    std::string line;
+    uint32_t index = ADDR_TO_INDEX(program_counter_);
 
-    if (!file_.is_open()) {
-        throw std::runtime_error("File is not open");
+    if (index >= memory_content_.size()) {
+        throw std::runtime_error("End of program reached");
     }
 
-    /* The getline function automatically advances the file cursor to the next line.
-     * This means each call to this method reads the next line in sequence,
-     * similar to how a program counter advances in a processor.
-     * The file cursor's position is maintained by the ifstream object (file_)
-     * between function calls.
-     */
-    if (!std::getline(file_, line)) {
-        // Check if we reached end of file
-        if (file_.eof()) {
-            throw std::runtime_error("End of file reached");
-        } else {
-            throw std::runtime_error("Error reading file");
-        }
-    }
-
-    // Trim leading and trailing whitespace
-    line.erase(0, line.find_first_not_of(" \t\r\n"));  // Leading whitespace
-    line.erase(line.find_last_not_of(" \t\r\n") + 1);  // Trailing whitespace
-
-    if (line.empty()) {
-        throw std::runtime_error("Empty line encountered in middle of program");
-    }
-
-    uint32_t instruction;
-
-    // Convert a line of characters to hex and store it in ss
-    std::stringstream ss;
-    ss << std::hex << line;
-    // Extract the instruction from the stream
-    if (!(ss >> instruction)) {
-        throw std::runtime_error("Failed to parse instruction: " + line);
-    }
-
-    program_counter_ += 4;
+    uint32_t instruction = memory_content_[index];
+    program_counter_ += 4;  // Advance program counter
 
     return instruction;
 }
 
 /**
- * @brief Read a 32-bit value from a specific memory address, then returns file position to
-            original spot.
+ * @brief Read a 32-bit value from a specific memory address
  * @param address Memory address to read from
  * @return The 32-bit value at the specified address
- * @throws std::runtime_error if address is invalid or file access fails
  */
 uint32_t MemoryParser::readMemory(uint32_t address) {
     if (address % 4 != 0) {
         throw std::runtime_error("Unaligned memory access: " + std::to_string(address));
     }
-    if (address >= MAX_LINE_COUNT * 4) {
+    if (address >= MAX_MEMORY_SIZE) {
         throw std::runtime_error("Memory address out of bounds: " + std::to_string(address));
     }
 
-    // Calculate line number (divide by 4 since each address increments by 4)
-    uint32_t lineNumber = address / 4;
+    uint32_t index = ADDR_TO_INDEX(address);
+    ensureIndexExists(index);
 
-    // Save current position for program counter
-    std::streampos currentPos = file_.tellg();
-
-    seekToLine(lineNumber);
-
-    std::string line;
-    try {
-        std::getline(file_, line);
-    } catch (...) {
-        // Restore position and throw
-        std::cerr << "DEBUG: After getline - EOF: " << file_.eof() << ", FAIL: " << file_.fail()
-                  << ", BAD: " << file_.bad() << std::endl;
-        file_.clear();
-        file_.seekg(currentPos);
-        throw std::runtime_error("Failed to read memory at address: " + std::to_string(address));
-    }
-
-    // Trim any whitespace that might have been added
-    line.erase(0, line.find_first_not_of(" \t\r\n"));
-    line.erase(line.find_last_not_of(" \t\r\n") + 1);
-
-    // Convert hex string to uint32_t
-    uint32_t value = 0;
-    std::stringstream ss;
-    ss << std::hex << line;
-    if (!(ss >> value)) {
-        // Restore position and throw
-        file_.clear();
-        file_.seekg(currentPos);
-        throw std::runtime_error("Failed to parse memory at address: " + std::to_string(address));
-    }
-
-    // Restore original position
-    file_.clear();
-    file_.seekg(currentPos);
-
-    return value;
+    return memory_content_[index];
 }
 
 /**
- * @brief Write a 32-bit value to a specific memory address, note that writing is much more
- expensive then reading.
+ * @brief Write a 32-bit value to a specific memory address
  * @param address Memory address to write to
  * @param value The 32-bit value to write
- * @throws std::runtime_error if address is invalid or file access fails
+ * @throws std::runtime_error if address is invalid
  */
 void MemoryParser::writeMemory(uint32_t address, uint32_t value) {
-    // Checks for alignment and bounds
     if (address % 4 != 0) {
         throw std::runtime_error("Unaligned memory access: " + std::to_string(address));
     }
-    if (address > MAX_LINE_COUNT * 4) {
+    if (address >= MAX_MEMORY_SIZE) {
         throw std::runtime_error("Memory address out of bounds: " + std::to_string(address));
     }
 
-    // Save current position
-    std::streampos currentPos = file_.tellg();
+    uint32_t index = ADDR_TO_INDEX(address);
+    ensureIndexExists(index);
 
-    // Format the value as an 8-digit hex string
-    std::stringstream ss;
-    ss << std::uppercase << std::hex << std::setw(8) << std::setfill('0') << value;
-    std::string hexValue = ss.str();
+    memory_content_[index] = value;
+    modified_ = true;  // Mark as modified
+}
 
-    // Go to the target line
-    seekToLine(address / 4);
+/**
+ * @brief Moves the program counter to the instruction at the specified address
+ * @param address The memory address to jump to
+ * @throws std::runtime_error if address is invalid
+ */
+void MemoryParser::jumpToInstruction(uint32_t address) {
+    if (address % 4 != 0) {
+        throw std::runtime_error("Unaligned instruction address: " + std::to_string(address));
+    }
+    if (address >= MAX_MEMORY_SIZE) {
+        throw std::runtime_error("Instruction address out of bounds: " + std::to_string(address));
+    }
 
-    // Need to increase the curser to next line
+    uint32_t index = ADDR_TO_INDEX(address);
+    ensureIndexExists(index);
 
-    // Overwrite the line
-    file_ << hexValue << std::endl;
+    program_counter_ = address;
+}
 
-    // Restore position
-    file_.clear();
-    try {
-        file_.seekg(currentPos);
-    } catch (...) {
-        throw std::runtime_error("Failed to restore file position after write");
+void MemoryParser::printMemoryContent() {
+    std::cout << "Memory Content: Vec Index (dec)   :   Hex Address   :   Hex Value   "
+              << std::endl;
+    for (size_t i = 0; i < memory_content_.size(); ++i) {
+        // Print each memory line as an 8-digit hex string
+        std::cout << std::dec << i << " : " << "0x" << std::setw(8) << std::setfill('0') << std::hex
+                  << INDEX_TO_ADDR(i) << ": 0x" << std::setw(8) << std::setfill('0')
+                  << memory_content_[i] << std::endl;
     }
 }
 
 /**
- * @brief Moves the file cursor to the instruction at the specified address, which
-            would be used in the case of a jump or branch
- * @param address The memory address to jump to
- * @throws std::runtime_error if address is invalid or file access fails
+ * @brief Resets the program counter to the beginning
  */
-void MemoryParser::jumpToInstruction(uint32_t address) {
-    // Check if address is aligned to 4 bytes (instructions are 4 bytes each)
-    if (address % 4 != 0) {
-        throw std::runtime_error("Unaligned instruction address: " + std::to_string(address));
-    }
-    if (address > MAX_MEMORY_SIZE) {
-        throw std::runtime_error("Instruction address out of bounds: " + std::to_string(address));
-    }
-
-    uint32_t lineNumber = address / 4;
-
-    seekToLine(lineNumber);
-    // Now the file cursor is positioned at the desired instruction
-    // The next call to readNextInstruction() will read this instruction
-    program_counter_ = address;
-}
-
 void MemoryParser::reset() {
-    if (file_.is_open()) {
-        file_.clear();                  // Clear EOF flag
-        file_.seekg(0, std::ios::beg);  // Reset to the beginning of the file
-    }
-
     program_counter_ = 0;  // Reset program counter
 }
