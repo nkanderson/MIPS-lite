@@ -12,14 +12,6 @@ target_link_libraries(memory_parser_test
     mips_lite_lib
 )
 
-# For filesystem support on older compilers if needed
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
-    target_link_libraries(memory_parser_test PRIVATE stdc++fs)
-endif()
-
 # Register with CTest using Google Test's discovery
 include(GoogleTest)
-gtest_discover_tests(memory_parser_test
-    PROPERTIES
-        LABELS "memory_parser"
-)
+gtest_discover_tests(memory_parser_test)
