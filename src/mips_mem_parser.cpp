@@ -48,8 +48,6 @@ MemoryParser::MemoryParser(const std::string& input_filename, const std::string&
     if (memory_content_.size() > MAX_VEC_SIZE) {
         throw std::runtime_error("File exceeds maximum memory size of 4KiB");
     }
-
-    program_counter_ = 0;
     modified_ = false;
     write_file_on_modified_ = true;
 
@@ -108,17 +106,18 @@ void MemoryParser::writeToFile() {
  * @brief Reads the next instruction from memory and advances the program counter
  * @return uint32_t instruction read from memory
  */
-uint32_t MemoryParser::readNextInstruction() {
-    uint32_t index = ADDR_TO_INDEX(program_counter_);
-
-    if (index >= memory_content_.size()) {
-        throw std::runtime_error("End of program reached");
+uint32_t MemoryParser::readInstruction(uint32_t address) {
+    if (address % 4 != 0) {
+        throw std::runtime_error("Unaligned memory access: " + std::to_string(address));
     }
 
-    uint32_t instruction = memory_content_[index];
-    program_counter_ += 4;  // Advance program counter
+    uint32_t index = ADDR_TO_INDEX(address);
 
-    return instruction;
+    if (index >= memory_content_.size()) {
+        throw std::runtime_error("Invalid instruction address: " + std::to_string(address));
+    } else {
+        return memory_content_[index];
+    }
 }
 
 /**
@@ -161,25 +160,6 @@ void MemoryParser::writeMemory(uint32_t address, uint32_t value) {
     modified_ = true;  // Mark as modified
 }
 
-/**
- * @brief Moves the program counter to the instruction at the specified address
- * @param address The memory address to jump to
- * @throws std::runtime_error if address is invalid
- */
-void MemoryParser::jumpToInstruction(uint32_t address) {
-    if (address % 4 != 0) {
-        throw std::runtime_error("Unaligned instruction address: " + std::to_string(address));
-    }
-    if (address >= MAX_MEMORY_SIZE) {
-        throw std::runtime_error("Instruction address out of bounds: " + std::to_string(address));
-    }
-
-    uint32_t index = ADDR_TO_INDEX(address);
-    ensureIndexExists(index);
-
-    program_counter_ = address;
-}
-
 void MemoryParser::printMemoryContent() {
     std::cout << "Memory Content: Vec Index (dec)   :   Hex Address   :   Hex Value   "
               << std::endl;
@@ -189,11 +169,4 @@ void MemoryParser::printMemoryContent() {
                   << INDEX_TO_ADDR(i) << ": 0x" << std::setw(8) << std::setfill('0')
                   << memory_content_[i] << std::endl;
     }
-}
-
-/**
- * @brief Resets the program counter to the beginning
- */
-void MemoryParser::reset() {
-    program_counter_ = 0;  // Reset program counter
 }

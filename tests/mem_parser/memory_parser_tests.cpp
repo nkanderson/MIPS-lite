@@ -69,16 +69,17 @@ TEST_F(MemoryParserTest, FileSize) {
 // Test reading instructions sequentially
 TEST_F(MemoryParserTest, ReadEntireFileSequentially) {
     MemoryParser parser(test_filename);
-
+    uint32_t address = 0x0000;  // Start address
     // Read all instructions and verify they match our sample
     for (const auto& expected_instr : sample_lines) {
         uint32_t expected = std::stoul(expected_instr, nullptr, 16);
-        uint32_t actual = parser.readNextInstruction();
+        uint32_t actual = parser.readInstruction(address);
         EXPECT_EQ(expected, actual) << "Instruction mismatch";
+        address += 4;  // Increment address by 4 bytes (word size)
     }
 
     // Test end of file exception
-    EXPECT_THROW({ parser.readNextInstruction(); }, std::runtime_error);
+    EXPECT_THROW({ parser.readInstruction(address); }, std::runtime_error);
 }
 
 TEST_F(MemoryParserTest, readMemoryOutOfBounds) {
@@ -116,34 +117,12 @@ TEST_F(MemoryParserTest, readMemoryWithAddedZeroLines) {
     EXPECT_EQ(parser.getNumMemoryElements(), curr_size + 10) << "File size mismatch";
 }
 
-TEST_F(MemoryParserTest, jumpToInstructionValid) {
-    MemoryParser parser(test_filename);
-
-    // Test jumping to a valid address
-    uint32_t jump_addr = INDEX_TO_ADDR(5);  // Jump to 6th instruction
-    EXPECT_NO_THROW(parser.jumpToInstruction(jump_addr));
-
-    // PC should be updated
-    EXPECT_EQ(jump_addr, parser.getPC()) << "Program counter not updated after jump";
-
-    // Test that the next instruction read is correct
-    uint32_t expected = std::stoul(sample_lines[5], nullptr, 16);
-    uint32_t actual = parser.readNextInstruction();
-    EXPECT_EQ(expected, actual) << "Wrong instruction read after jump";
-
-    // PC should be incremented after read
-    EXPECT_EQ(jump_addr + 4, parser.getPC()) << "Program counter not incremented after read";
-}
-
 TEST_F(MemoryParserTest, jumpToInstructionUnaligned) {
     MemoryParser parser(test_filename);
 
     // Test jumping to an unaligned address
     uint32_t jump_addr = INDEX_TO_ADDR(5) + 2;  // Not divisible by 4
-    EXPECT_THROW(parser.jumpToInstruction(jump_addr), std::runtime_error);
-
-    // PC should remain unchanged
-    EXPECT_EQ(0, parser.getPC()) << "Program counter changed after failed jump";
+    EXPECT_THROW(parser.readInstruction(jump_addr), std::runtime_error);
 }
 
 TEST_F(MemoryParserTest, jumpToInstructionOutOfBounds) {
@@ -151,29 +130,7 @@ TEST_F(MemoryParserTest, jumpToInstructionOutOfBounds) {
 
     // Test jumping beyond bounds
     uint32_t jump_addr = MAX_MEMORY_SIZE + 4;
-    EXPECT_THROW(parser.jumpToInstruction(jump_addr), std::runtime_error);
-
-    // PC should remain unchanged
-    EXPECT_EQ(0, parser.getPC()) << "Program counter changed after failed jump";
-}
-
-TEST_F(MemoryParserTest, jumpThenReadSequentially) {
-    MemoryParser parser(test_filename);
-
-    // Jump to the middle
-    uint32_t jump_addr = INDEX_TO_ADDR(8);
-    parser.jumpToInstruction(jump_addr);
-
-    // Read several instructions sequentially after jump
-    for (size_t i = 8; i < 12; i++) {
-        uint32_t expected = std::stoul(sample_lines[i], nullptr, 16);
-        uint32_t actual = parser.readNextInstruction();
-        EXPECT_EQ(expected, actual) << "Instruction mismatch after jump at index " << i;
-    }
-
-    // Verify final PC position
-    EXPECT_EQ(jump_addr + (4 * 4), parser.getPC())
-        << "Final PC position incorrect after sequential reads";
+    EXPECT_THROW(parser.readInstruction(jump_addr), std::runtime_error);
 }
 
 TEST_F(MemoryParserTest, writeMemoryValid) {
@@ -188,9 +145,6 @@ TEST_F(MemoryParserTest, writeMemoryValid) {
     // Read back the value to verify
     uint32_t read_value = parser.readMemory(write_addr);
     EXPECT_EQ(new_value, read_value) << "Value not correctly written to memory";
-
-    // Verify the program counter wasn't affected
-    EXPECT_EQ(0, parser.getPC()) << "Program counter changed after memory write";
 }
 
 TEST_F(MemoryParserTest, writeMemoryUnaligned) {
@@ -217,8 +171,10 @@ TEST_F(MemoryParserTest, writeReadInteraction) {
     MemoryParser parser(test_filename);
 
     // Read some instructions first
+    uint32_t addr = 0x0000;  // Start address
     for (int i = 0; i < 5; i++) {
-        parser.readNextInstruction();
+        parser.readInstruction(addr);
+        addr += 4;  // Increment address by 4 bytes (word size)
     }
 
     // Write to a previous memory location
@@ -230,14 +186,6 @@ TEST_F(MemoryParserTest, writeReadInteraction) {
     // Read from the written location
     uint32_t read_value = parser.readMemory(write_addr);
     EXPECT_EQ(new_value, read_value) << "Value not correctly written/read";
-
-    // Continue reading from current PC
-    uint32_t expected_pc = 5 * 4;
-    EXPECT_EQ(expected_pc, parser.getPC()) << "PC not preserved during write/read";
-
-    uint32_t expected = std::stoul(sample_lines[5], nullptr, 16);
-    uint32_t actual = parser.readNextInstruction();
-    EXPECT_EQ(expected, actual) << "Incorrect instruction read after write/read operations";
 }
 
 TEST_F(MemoryParserTest, writeMemoryBeyondCurrentSize) {
