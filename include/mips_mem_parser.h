@@ -32,7 +32,7 @@ class MemoryParser {
     std::string output_filename_;           // Output file to write to
     std::vector<uint32_t> memory_content_;  // Vector to store file content
     uint32_t current_line_count_;
-    uint32_t program_counter_;
+    // uint32_t program_counter_;
     bool modified_;
     bool write_file_on_modified_;  // Flag to track if memory has been modified; if it has
                                    // the destructor will write to the output file
@@ -45,18 +45,15 @@ class MemoryParser {
                           const std::string& output_filename = "");
     ~MemoryParser();
 
-    uint32_t readNextInstruction();                      // PC Access
-    uint32_t readMemory(uint32_t address);               // For Memory Access
-    void writeMemory(uint32_t address, uint32_t value);  // For Memory Access
-    void reset();                                        // PC Reset
-    void jumpToInstruction(uint32_t address);            // PC Jump
+    uint32_t readInstruction(uint32_t address);          // Instruction Access
+    uint32_t readMemory(uint32_t address);               // Data Memory Access
+    void writeMemory(uint32_t address, uint32_t value);  // Data Memory Access
     void printMemoryContent();                           // For debugging
 
     // Getters
     std::string getInputFilename() const { return input_filename_; }
     std::string getOutputFilename() const { return output_filename_; }
     size_t getNumMemoryElements() const { return memory_content_.size(); }
-    uint32_t getPC() const { return program_counter_; }
 
     // Setters
     void setOutputFilename(const std::string& output_filename) {
