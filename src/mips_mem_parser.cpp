@@ -103,7 +103,8 @@ void MemoryParser::writeToFile() {
 }
 
 /**
- * @brief Reads the next instruction from memory and advances the program counter
+ * @brief Used for instruction memory access
+ * @param address Memory address to read from
  * @return uint32_t instruction read from memory
  */
 uint32_t MemoryParser::readInstruction(uint32_t address) {
