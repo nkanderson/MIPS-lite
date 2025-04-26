@@ -35,6 +35,8 @@ FetchContent_MakeAvailable(googletest)
 
 set(SOURCE_FILES
     src/mips_mem_parser.cpp
+    src/mips_instruction.cpp
+    src/stats.cpp
 )
 
 # Create the library that will be used by tests and main executable
@@ -51,3 +53,4 @@ enable_testing()
 add_subdirectory(tests/proj_setup)
 add_subdirectory(tests/mem_parser)
 add_subdirectory(tests/libs)
+add_subdirectory(tests/mips_instruction)
