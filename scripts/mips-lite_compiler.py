@@ -1,12 +1,22 @@
+'''
+    mips-lite_compiler.py
+    
+    Description: Psuedo-compiler for MIPS-lite code. Converts lines of 
+    code into hex representations to provide as a trace file for the 
+    MIPS-lite simulator.
+'''
+
 import argparse
+import sys
 from enum import Enum
 
 # Class declaration for instruction types
 class TYPE(Enum):
     R_TYPE = 0  # Format for R Type: opcode | rs | rt | rd
-                # Format for R code: OPCODE RD RS RT
+                # Format for R code: OPCODE RD RS RT 
     I_TYPE = 1  # Format for I Type: opcode | rs | rt | immediate
                 # Format for I code: OPCODE RT RS IMMEDIATE
+                # *Some instructions may only use 1, 2, or 3 of the I-type fields
 
 # ISA Lookup Table
 ISAlist = {
@@ -36,17 +46,40 @@ ISAlist = {
     "HALT"  : 0b010001      # Uses 1/4 sections of the instruction
 }
 
-def instructtoType(opString):
+# instructtoType - takes in opcode string/int and returns the type
+def instructtoType(opcode):
+    opString = None
+    
+    if isinstance(opcode, int):
+        if (debug == True): print("Opcode: " + str(opcode))
+        opString = next((key for key, value in ISAlist.items() if value == opcode), None)
+        if opString is None:
+            print("Error: Invalid opcode provided -> " + str(opcode))
+            return -1
+
+    elif isinstance(opcode, str):
+        if opcode in ISAlist:
+            opString = opcode
+        else:
+            print("Error: Invalid opcode string provided -> " + opcode)
+            return -1
+    
+    
     match opString:
         case "ADD" | "SUB" | "MUL" | "OR" | "AND" | "XOR":
             return TYPE.R_TYPE
         case _:
             return TYPE.I_TYPE
 
-def converttoInt(inputLine):
+# converttoInt - takes in 4-length array and strips any unnecessary characters to convert to int
+def converttoInt(inputLine):    
+    # Search Instruction dictionary for instruction and binary key
     r1 = ISAlist[inputLine[0]]
     r2 = int(inputLine[1].strip("R"))
     r3 = int(inputLine[2].strip("R"))
+    
+    # Check if 4th argument of array is RD or IMM, strip accordingly
+    # For case where HALT is used, 4th item is empty, so have default of 0
     if (inputLine[3].startswith("0x")):
         r4 = int(inputLine[3].strip("0x"))
     elif (inputLine[3].startswith("R")):
@@ -56,13 +89,15 @@ def converttoInt(inputLine):
 
     return r1, r2, r3, r4
 
+# concatInstruction - takes in 4 fields and combines them based on binary layout of opcode type.
 def concatInstruction(opcode, rs, rt, rd_imm):
-    if (instructtoType(opcode) == TYPE.R_TYPE):
+    check = instructtoType(opcode)
+    if (check == TYPE.R_TYPE):
         return (opcode << 26) | (rs << 21) | (rt << 16) | (rd_imm << 11)
-    elif (instructtoType(opcode) == TYPE.I_TYPE):   
+    elif (check == TYPE.I_TYPE):   
         return (opcode << 26) | (rs << 21) | (rt << 16) | (rd_imm & 0xFFFF)
 
-def arguements():
+def arguments():
     inputArgs = argparse.ArgumentParser(description="MIPS-Lite Compiler")
     inputArgs.add_argument("-i", "--input", type=str, required=True, help="Input assembly file")
     inputArgs.add_argument("-o", "--output", type=str, required=False, default="output.txt", help="Output binary file")
@@ -73,7 +108,7 @@ def main():
     global debug
     
     # Parse input command line arguments
-    args = arguements()
+    args = arguments()
     inputFile = args.input
     outputFile = args.output
     debug = args.debug
@@ -81,41 +116,49 @@ def main():
     # Open input file
     with open(inputFile, "r") as rfile:
         linesArray = rfile.readlines()
-        print(linesArray)
-
-    # Convert each line from pseudo MIPs-Lite assembly to Hex
-    # EX: R-TYPE -> (0)ADD  (1)Rd   (2)Rs   (3)Rt
-    # EX: I-TYPE -> (0)ADDI (1)Rt   (2)Rs   (3)Imm
-    
-    # Binary Layout
-    # Opcode - RS - RT - RD - (Unused)
-    # Opcode - RS - RT - IMM
-    
+        if (debug == True): print(linesArray)
+        
+    # Make array instance to hold hex values
     hexArray = []
     
+    # Convert each line from pseudo MIPs-Lite assembly to Hex
+        # EX: R-TYPE -> (0)ADD  (1)Rd   (2)Rs   (3)Rt
+        # EX: I-TYPE -> (0)ADDI (1)Rt   (2)Rs   (3)Imm
     for line in linesArray:
-        # Break string into segments
+        # Binary Layout
+        # Opcode - RS - RT - RD - (Unused)
+        # Opcode - RS - RT - IMM
+        
+        # Break string into segments (line should have length of 4 items)
         line = line.split(" ")
         
+        # Clean up strings of whitespaces/newlines
+        for index, segment in enumerate(line):
+            line[index] = segment.strip()
+        
         # Determine type of instruction
-        if (instructtoType(line[0]) == TYPE.R_TYPE):
+        check = instructtoType(line[0])
+        if (check == TYPE.R_TYPE):
             # Index Concatnation: [0]/[2]/[3]/[1]
             index = [0, 2, 3, 1]
-        
-        elif (instructtoType(line[0]) == TYPE.I_TYPE):
-            # Index Concatnation: [0]/[2]/[1]/[3]
+        elif (check == TYPE.I_TYPE):
+            # If the instruction is one of the special I-type 
+            # instructions that doesn't use all of the 4 fields,
+            # append 0s till a length of 4 is acheived
             if (len(line) != 4):
                 while (len(line) < 4):
                     line.append("0")
+                    
+            # Index Concatnation: [0]/[2]/[1]/[3]        
             index = [0, 2, 1, 3]
+        else:
+            print("Error: Instruction is not a valid instruction -> " + line[0])
+            sys.exit(-1)
 
         # Rearrange array of strings to match binary layout
         line[:] = [line[i] for i in index]
         
-        for index, segment in enumerate(line):
-            # Clean up strings
-            line[index] = segment.strip()
-        
+        # Print current items
         if (debug == True):
             print("Current Items in Array:")
             for item in line:
@@ -127,7 +170,7 @@ def main():
         
         if (debug == True):
             print("Result of Binary Conversion: " + bin(instructNum) \
-                  + " (" + hex(instructNum) + ")")
+                  + " (0x" + format(instructNum, '08x') + ")")
         
         hexArray.append(format(instructNum, '08x'))
     
