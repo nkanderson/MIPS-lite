@@ -3,9 +3,11 @@
 
 #include <cstdint>
 #include <optional>
+#include <stdexcept>
 
 #include "mips_lite_defs.h"
 
+// Basic data class to store MIPs instruction information
 class Instruction {
    private:
     uint32_t instruction_;
@@ -19,7 +21,6 @@ class Instruction {
 
    public:
     explicit Instruction(uint32_t instruction);
-    ~Instruction() = default;  // TODO: Is this correct? Any other destructor needed?
 
     // Getters
     uint8_t getOpcode() const { return opcode_; }
@@ -28,9 +29,23 @@ class Instruction {
 
     // Getters for optional fields
     bool hasRd() const { return rd_.has_value(); }
-    uint8_t getRd() const { return rd_.value_or(0); }  // Returns 0 if not present
+
+    uint8_t getRd() const {
+        if (!rd_.has_value()) {
+            throw std::invalid_argument("No rd value present for this instruction type.");
+        }
+        return rd_.value();
+    }
+
     bool hasImmediate() const { return immediate_.has_value(); }
-    int32_t getImmediate() const { return immediate_.value_or(0); }  // Returns 0 if not present
+
+    int32_t getImmediate() const {
+        if (!immediate_.has_value()) {
+            throw std::invalid_argument("No immediate value present for this instruction type.");
+        }
+        return immediate_.value();
+    }
+
     // Other getters
     uint32_t getInstruction() const { return instruction_; }
     mips_lite::InstructionType getInstructionType() const { return instruction_type_; }
