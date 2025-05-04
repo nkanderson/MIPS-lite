@@ -109,7 +109,7 @@ inline InstructionType get_instruction_type(uint8_t opcode) {
 // Control Word Bit Positions
 // Control Word Bit Positions
 namespace control {
-// Example control signals - adjust based on your specific datapath
+// Example control signals - TODO: adjust based on what we decide to implement
 constexpr uint16_t REG_DST = 0x0001;     // 0: RT as destination, 1: RD as destination
 constexpr uint16_t ALU_SRC = 0x0002;     // 0: Register, 1: Immediate
 constexpr uint16_t MEM_TO_REG = 0x0004;  // 0: ALU result, 1: Memory data

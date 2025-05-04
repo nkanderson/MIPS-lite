@@ -56,6 +56,33 @@ TEST_F(InstructionTest, RTypeAddInstruction) {
     EXPECT_EQ(instr.getControlWord(), expected_control);
 }
 
+// Validate invalid instruction handling
+TEST_F(InstructionTest, OptionalFields) {
+    {
+        // R-type instruction test
+        Instruction instr(r_type_add_instr);
+        // Check if rd is present
+        EXPECT_TRUE(instr.hasRd());
+        EXPECT_EQ(instr.getRd(), 3);
+        // Check if immediate is not present
+        EXPECT_FALSE(instr.hasImmediate());
+        // Attempt to get immediate should throw an exception
+        EXPECT_THROW(instr.getImmediate(), std::invalid_argument);
+    }
+
+    {
+        // I-type instruction test
+        Instruction instr(i_type_addi_pos_instr);
+        // Check if immediate is present
+        EXPECT_TRUE(instr.hasImmediate());
+        EXPECT_EQ(instr.getImmediate(), 100);
+        // Check if rd is not present
+        EXPECT_FALSE(instr.hasRd());
+        // Attempt to get rd should throw an exception
+        EXPECT_THROW(instr.getRd(), std::invalid_argument);
+    }
+}
+
 // Test I-type instruction with positive immediate
 TEST_F(InstructionTest, ITypeInstructionPositiveImmediate) {
     Instruction instr(i_type_addi_pos_instr);
