@@ -18,6 +18,43 @@ class TYPE(Enum):
                 # Format for I code: OPCODE RT RS IMMEDIATE
                 # *Some instructions may only use 1, 2, or 3 of the I-type fields
 
+class stats:
+    def __init__(self):
+        self.instructionCount = 0
+        self.arithmeticCount = 0
+        self.logicCount = 0
+        self.memoryAccessCount = 0
+        self.ControlFlowCOunt = 0
+    
+    def incInstructionCount(self):
+        self.instructionCount += 1
+        
+    def incArithmeticCount(self):
+        self.instructionCount += 1
+        self.arithmeticCount += 1
+    
+    def incLogicCount(self):
+        self.instructionCount += 1
+        self.logicCount += 1
+    
+    def incMemoryAccessCount(self):
+        self.memoryAccessCount += 1    
+        
+    def printStats(self):
+        print("Instruction Count: " + str(self.instructionCount))
+        print("Arithmetic Count: " + str(self.arithmeticCount))
+        print("Logic Count: " + str(self.logicCount))
+        print("Memory Access Count: " + str(self.memoryAccessCount))
+        
+    def saveStats(self, filename = "outputStats.txt"):
+        with open(filename, 'w') as f:
+            f.write("Values below only show counts within the program.")
+            f.write("Instruction Count: " + str(self.instructionCount) + "\n")
+            f.write("Arithmetic Count: " + str(self.arithmeticCount) + "\n")
+            f.write("Logic Count: " + str(self.logicCount) + "\n")
+            f.write("Memory Access Count: " + str(self.memoryAccessCount) + "\n")
+
+
 # ISA Lookup Table
 ISAlist = {
     # Arithmetic Instructions
@@ -45,6 +82,11 @@ ISAlist = {
     "JR"    : 0b010000,     # Uses 2/4 sections of the instruction
     "HALT"  : 0b010001      # Uses 1/4 sections of the instruction
 }
+
+def twosComp(value, bits):
+    if (value & (1 << (bits - 1)) != 0):
+        value = value - (1 << bits)
+    return value
 
 # instructtoType - takes in opcode string/int and returns the type
 def instructtoType(opcode):
@@ -79,13 +121,11 @@ def converttoInt(inputLine):
     r3 = int(inputLine[2].strip("R"))
     
     # Check if 4th argument of array is RD or IMM, strip accordingly
-    # For case where HALT is used, 4th item is empty, so have default of 0
-    if (inputLine[3].startswith("0x")):
-        r4 = int(inputLine[3].strip("0x"))
-    elif (inputLine[3].startswith("R")):
+    if (inputLine[3].startswith("R")):
         r4 = int(inputLine[3].strip("R"))
     else:
-        r4 = 0
+        r4 = int(inputLine[3])
+        temp = twosComp(r4, 16)
 
     return r1, r2, r3, r4
 
@@ -106,6 +146,7 @@ def arguments():
 
 def main():
     global debug
+    counts = stats()
     
     # Parse input command line arguments
     args = arguments()
@@ -141,6 +182,7 @@ def main():
         if (check == TYPE.R_TYPE):
             # Index Concatnation: [0]/[2]/[3]/[1]
             index = [0, 2, 3, 1]
+            counts.incArithmeticCount()
         elif (check == TYPE.I_TYPE):
             # If the instruction is one of the special I-type 
             # instructions that doesn't use all of the 4 fields,

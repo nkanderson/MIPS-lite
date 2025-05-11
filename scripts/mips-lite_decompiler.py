@@ -27,6 +27,11 @@ ISAlist = {
     "HALT"  : 0b010001      # Uses 1/4 sections of the instruction
 }
 
+def twosComp(value, bits):
+    if (value & (1 << (bits - 1)) != 0):
+        value = value - (1 << bits)
+    return value
+
 def arguments():
     inputArgs = argparse.ArgumentParser(description="MIPS-Lite Compiler")
     inputArgs.add_argument("-i", "--input", type=str, required=True, help="Input assembly file")
@@ -118,7 +123,8 @@ def main():
                             case "ADD" | "SUB" | "MUL" | "OR" | "AND" | "XOR":
                                 segment = f"Rd: R{int(segment[0:5], 2)}" + "\n\n"
                             case _:
-                                segment = f"Immediate: {int(segment, 2)}" + "\n\n"
+                                temp = twosComp(int(segment, 2), 16)
+                                segment = f"Immediate: {temp}" + "\n\n"
                 wfile.write(segment)
                 
                 
