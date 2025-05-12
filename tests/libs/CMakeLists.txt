@@ -7,7 +7,7 @@ target_compile_features(test_stats PRIVATE cxx_std_17)
 target_include_directories(test_stats PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
 # Link against Google Test
-target_link_libraries(test_stats PRIVATE stats gtest gtest_main)
+target_link_libraries(test_stats PRIVATE mips_lite_lib gtest gtest_main)
 
 # Register with CTest using Google Test's discovery
 include(GoogleTest)
