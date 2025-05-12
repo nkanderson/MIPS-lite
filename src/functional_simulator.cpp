@@ -1,11 +1,11 @@
 #include "functional_simulator.h"
 
+#include "memory_interface.h"
 #include "mips_instruction.h"
-#include "mips_mem_parser.h"
 #include "register_file.h"
 #include "stats.h"
 
-FunctionalSimulator::FunctionalSimulator(RegisterFile* rf, Stats* st, MemoryParser* mem,
+FunctionalSimulator::FunctionalSimulator(RegisterFile* rf, Stats* st, IMemoryParser* mem,
                                          bool enable_forwarding)
     : pc(0),
       register_file(rf),

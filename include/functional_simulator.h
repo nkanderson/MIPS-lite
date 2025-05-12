@@ -3,7 +3,7 @@
 #include <array>
 #include <cstdint>
 
-#include "mips_mem_parser.h"
+#include "memory_interface.h"
 #include "register_file.h"
 #include "stats.h"
 
@@ -28,7 +28,7 @@ class FunctionalSimulator {
      * @param mem Pointer to the MemoryParser instance.
      * @param enable_forwarding Optional flag to enable data forwarding.
      */
-    FunctionalSimulator(RegisterFile* rf, Stats* st, MemoryParser* mem,
+    FunctionalSimulator(RegisterFile* rf, Stats* st, IMemoryParser* mem,
                         bool enable_forwarding = false);
 
     // Getter methods
@@ -123,5 +123,5 @@ class FunctionalSimulator {
     uint8_t stall;
 
     /// Serves as the simulator memory
-    MemoryParser* memory_parser;
+    IMemoryParser* memory_parser;
 };
