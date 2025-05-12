@@ -34,6 +34,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 
 set(SOURCE_FILES
+    src/functional_simulator.cpp
     src/mips_mem_parser.cpp
     src/mips_instruction.cpp
     src/stats.cpp
@@ -52,3 +53,4 @@ add_subdirectory(tests/mem_parser)
 add_subdirectory(tests/libs)
 add_subdirectory(tests/mips_instruction)
 add_subdirectory(tests/reg_type)
+add_subdirectory(tests/functional_simulator)
