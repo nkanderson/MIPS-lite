@@ -116,12 +116,12 @@ class FunctionalSimulator {
     /// Stats instance to track runtime metrics
     Stats* stats;
 
+    /// Serves as the simulator memory
+    IMemoryParser* memory_parser;
+
     /// Whether or not data forwarding is enabled
     bool forward;
 
     /// Countdown of the required stall cycles
     uint8_t stall;
-
-    /// Serves as the simulator memory
-    IMemoryParser* memory_parser;
 };
