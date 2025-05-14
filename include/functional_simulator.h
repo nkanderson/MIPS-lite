@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "memory_interface.h"
+#include "reg_type.h"
 #include "register_file.h"
 #include "stats.h"
 
@@ -102,6 +103,27 @@ class FunctionalSimulator {
      * @param instr Pointer to the instruction.
      */
     void writeBack(Instruction* instr);
+
+    /**
+     * @brief Advance all pipeline registers by one cycle.
+     *
+     * This clocks each pipeline register, promoting its next value to current.
+     * Should be called at the end of each simulation cycle.
+     */
+    void clockPipelineRegisters();
+
+    /**
+     * @brief Pipeline registers between each stage. Each register holds a full
+     *        register file in order to allow named access of register data
+     *        between stages.
+     *
+     * These are intended to model the flow of decoded operand values and intermediate
+     * results between pipeline stages, enabling inspection or forwarding by register number.
+     */
+    reg<RegisterFile> ifid_reg;   ///< Between instruction fetch and decode
+    reg<RegisterFile> idex_reg;   ///< Between decode and execute
+    reg<RegisterFile> exmem_reg;  ///< Between execute and memory
+    reg<RegisterFile> memwb_reg;  ///< Between memory and writeback
 
    private:
     /// Program Counter
