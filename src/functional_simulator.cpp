@@ -61,3 +61,10 @@ void FunctionalSimulator::writeBack(Instruction* instr) {
     // Stub: Write result back to register file, clear dirty bit
     (void)instr;
 }
+
+void FunctionalSimulator::clockPipelineRegisters() {
+    ifid_reg.clock();
+    idex_reg.clock();
+    exmem_reg.clock();
+    memwb_reg.clock();
+}

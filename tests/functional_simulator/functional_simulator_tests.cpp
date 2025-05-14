@@ -82,6 +82,33 @@ TEST_F(FunctionalSimulatorTest, ThrowsOnInvalidPipelineStageIndex) {
     EXPECT_THROW(sim->getPipelineStage(5), std::out_of_range);
 }
 
+TEST_F(FunctionalSimulatorTest, ClockPipelineRegistersUpdatesRegisterStates) {
+    // Create a known register file state for 2 different pipeline registers
+    RegisterFile if_id;
+    if_id.write(5, 42);  // write value 42 to R5
+
+    RegisterFile ex_mem;
+    ex_mem.write(8, 1000);  // write value 1000 to R8
+
+    // Confirm neither pipeline register has valid values prior to clocking
+    // in values from next
+    sim->ifid_reg.setNext(if_id);
+    EXPECT_FALSE(sim->ifid_reg.isValid());
+
+    sim->exmem_reg.setNext(ex_mem);
+    EXPECT_FALSE(sim->exmem_reg.isValid());
+
+    // Clock all pipeline registers
+    sim->clockPipelineRegisters();
+
+    // Check that pipelines registers have been updated
+    EXPECT_TRUE(sim->ifid_reg.isValid());
+    EXPECT_EQ(sim->ifid_reg.current().read(5), 42);
+
+    EXPECT_TRUE(sim->exmem_reg.isValid());
+    EXPECT_EQ(sim->exmem_reg.current().read(8), 1000);
+}
+
 /*
 // The following or something similar may be used to test individual methods
 // with mocked memory parser methods like readInstruction
