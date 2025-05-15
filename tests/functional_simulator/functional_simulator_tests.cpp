@@ -83,30 +83,30 @@ TEST_F(FunctionalSimulatorTest, ThrowsOnInvalidPipelineStageIndex) {
 }
 
 TEST_F(FunctionalSimulatorTest, ClockPipelineRegistersUpdatesRegisterStates) {
-    // Create a known register file state for 2 different pipeline registers
-    RegisterFile if_id;
-    if_id.write(5, 42);  // write value 42 to R5
+    // Create pipeline data with result and destination register
+    PipelineData<uint32_t> idex_data = {42, 5};     // Intermediate value 42 targeting R5
+    PipelineData<uint32_t> exmem_data = {1000, 8};  // Intermediate value 1000 targeting R8
 
-    RegisterFile ex_mem;
-    ex_mem.write(8, 1000);  // write value 1000 to R8
+    // Load as next values (not yet clocked)
+    sim->idex_reg.setNext(idex_data);
+    EXPECT_FALSE(sim->idex_reg.isValid());
 
-    // Confirm neither pipeline register has valid values prior to clocking
-    // in values from next
-    sim->ifid_reg.setNext(if_id);
-    EXPECT_FALSE(sim->ifid_reg.isValid());
-
-    sim->exmem_reg.setNext(ex_mem);
+    sim->exmem_reg.setNext(exmem_data);
     EXPECT_FALSE(sim->exmem_reg.isValid());
 
-    // Clock all pipeline registers
+    // Clock the pipeline
     sim->clockPipelineRegisters();
 
-    // Check that pipelines registers have been updated
-    EXPECT_TRUE(sim->ifid_reg.isValid());
-    EXPECT_EQ(sim->ifid_reg.current().read(5), 42);
+    // Verify contents now valid and accessible
+    EXPECT_TRUE(sim->idex_reg.isValid());
+    EXPECT_EQ(sim->idex_reg.current().result, 42);
+    ASSERT_TRUE(sim->idex_reg.current().wb_reg.has_value());
+    EXPECT_EQ(sim->idex_reg.current().wb_reg.value(), 5);
 
     EXPECT_TRUE(sim->exmem_reg.isValid());
-    EXPECT_EQ(sim->exmem_reg.current().read(8), 1000);
+    EXPECT_EQ(sim->exmem_reg.current().result, 1000);
+    ASSERT_TRUE(sim->exmem_reg.current().wb_reg.has_value());
+    EXPECT_EQ(sim->exmem_reg.current().wb_reg.value(), 8);
 }
 
 /*
