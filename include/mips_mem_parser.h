@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "memory_interface.h"
 #include "mips_lite_defs.h"
 
 constexpr uint32_t ADDR_TO_INDEX(uint32_t addr) { return (addr >> 2); }
@@ -26,7 +27,7 @@ constexpr uint32_t INDEX_TO_ADDR(uint32_t index) { return (index << 2); }
 constexpr uint32_t MAX_MEMORY_SIZE = 4096;  // Maximum memory size in bytes (4 KiB)
 constexpr uint32_t MAX_VEC_SIZE = (MAX_MEMORY_SIZE / mips_lite::WORD_SIZE);
 
-class MemoryParser {
+class MemoryParser : public IMemoryParser {
    private:
     std::string input_filename_;            // Input file to read from
     std::string output_filename_;           // Output file to write to
@@ -45,10 +46,10 @@ class MemoryParser {
                           const std::string& output_filename = "");
     ~MemoryParser();
 
-    uint32_t readInstruction(uint32_t address);          // Instruction Access
-    uint32_t readMemory(uint32_t address);               // Data Memory Access
-    void writeMemory(uint32_t address, uint32_t value);  // Data Memory Access
-    void printMemoryContent();                           // For debugging
+    uint32_t readInstruction(uint32_t address) override;          // Instruction Access
+    uint32_t readMemory(uint32_t address) override;               // Data Memory Access
+    void writeMemory(uint32_t address, uint32_t value) override;  // Data Memory Access
+    void printMemoryContent();                                    // For debugging
 
     // Getters
     std::string getInputFilename() const { return input_filename_; }
