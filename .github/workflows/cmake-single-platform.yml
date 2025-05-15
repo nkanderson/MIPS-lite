@@ -1,0 +1,31 @@
+name: MIPS-Lite Tests
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+env:
+  BUILD_TYPE: Debug
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Configure CMake
+      run: cmake --preset ${{env.BUILD_TYPE}}
+
+    - name: Build
+      run: cmake --build --preset ${{env.BUILD_TYPE}} -j$(nproc)
+
+    - name: Run Tests
+      working-directory: ${{github.workspace}}/build/${{env.BUILD_TYPE}}
+      run: ctest --output-on-failure
+
+    - name: Test Summary
+      if: always()
+      run: |
+        echo "## MIPS-Lite Test Summary" >> $GITHUB_STEP_SUMMARY
+        echo "Build Type: ${{env.BUILD_TYPE}}" >> $GITHUB_STEP_SUMMARY
+        echo "Tests completed. See detailed output in the 'Run Tests' step above." >> $GITHUB_STEP_SUMMARY
