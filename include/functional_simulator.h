@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 
 #include "memory_interface.h"
 #include "reg_type.h"
@@ -10,6 +11,20 @@
 
 // Forward declarations of Instruction class
 class Instruction;
+
+/**
+ * @struct PipelineData
+ * @brief Holds intermediate pipeline data passed between stages.
+ *
+ * This includes:
+ * - `result`: an intermediate value (e.g., ALU result or memory load)
+ * - `wb_reg`: the destination register number to write to in the WB stage, if any
+ */
+template <typename T>
+struct PipelineData {
+    T result;                       ///< Intermediate result to be forwarded or written
+    std::optional<uint8_t> wb_reg;  ///< Destination register number (std::nullopt if N/A)
+};
 
 /**
  * @class FunctionalSimulator
@@ -113,17 +128,16 @@ class FunctionalSimulator {
     void clockPipelineRegisters();
 
     /**
-     * @brief Pipeline registers between each stage. Each register holds a full
-     *        register file in order to allow named access of register data
-     *        between stages.
+     * @brief Pipeline registers between each stage. Each register holds intermediate
+     *        values and target write-back registers.
      *
      * These are intended to model the flow of decoded operand values and intermediate
      * results between pipeline stages, enabling inspection or forwarding by register number.
      */
-    reg<RegisterFile> ifid_reg;   ///< Between instruction fetch and decode
-    reg<RegisterFile> idex_reg;   ///< Between decode and execute
-    reg<RegisterFile> exmem_reg;  ///< Between execute and memory
-    reg<RegisterFile> memwb_reg;  ///< Between memory and writeback
+    reg<PipelineData<uint32_t> > ifid_reg;   ///< Between instruction fetch and decode
+    reg<PipelineData<uint32_t> > idex_reg;   ///< Between decode and execute
+    reg<PipelineData<uint32_t> > exmem_reg;  ///< Between execute and memory
+    reg<PipelineData<uint32_t> > memwb_reg;  ///< Between memory and writeback
 
    private:
     /// Program Counter
