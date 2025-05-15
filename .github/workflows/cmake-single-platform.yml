@@ -7,36 +7,33 @@ on:
     branches: [ "main" ]
 
 env:
-  # Customize the CMake build type here
   BUILD_TYPE: Debug
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-    
+
     - name: Configure CMake
-      # Configure CMake in a 'build' subdirectory
       run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
-    
+
     - name: Build
-      # Build your program with the given configuration
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} -j$(nproc)
-    
+
     - name: Run Tests
       working-directory: ${{github.workspace}}/build
       # Execute tests with detailed output for failures
       run: ctest -C ${{env.BUILD_TYPE}} --output-on-failure
-    
+
     - name: Test Summary
       if: always()
       run: |
         echo "## MIPS-Lite Test Summary" >> $GITHUB_STEP_SUMMARY
         echo "Build Type: ${{env.BUILD_TYPE}}" >> $GITHUB_STEP_SUMMARY
-        
+
         # Check if test log exists
         if [ -f "${{github.workspace}}/build/Testing/Temporary/LastTest.log" ]; then
           echo '```' >> $GITHUB_STEP_SUMMARY
