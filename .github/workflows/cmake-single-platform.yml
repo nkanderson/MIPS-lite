@@ -1,44 +1,31 @@
 name: MIPS-Lite Tests
-
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-
 env:
   BUILD_TYPE: Debug
-
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
 
     - name: Configure CMake
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+      run: cmake --preset ${{env.BUILD_TYPE}}
 
     - name: Build
-      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} -j$(nproc)
+      run: cmake --build --preset ${{env.BUILD_TYPE}} -j$(nproc)
 
     - name: Run Tests
-      working-directory: ${{github.workspace}}/build
-      # Execute tests with detailed output for failures
-      run: ctest -C ${{env.BUILD_TYPE}} --output-on-failure
+      working-directory: ${{github.workspace}}/build/${{env.BUILD_TYPE}}
+      run: ctest --output-on-failure
 
     - name: Test Summary
       if: always()
       run: |
         echo "## MIPS-Lite Test Summary" >> $GITHUB_STEP_SUMMARY
         echo "Build Type: ${{env.BUILD_TYPE}}" >> $GITHUB_STEP_SUMMARY
-
-        # Check if test log exists
-        if [ -f "${{github.workspace}}/build/Testing/Temporary/LastTest.log" ]; then
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          grep -A 5 "The following tests FAILED" "${{github.workspace}}/build/Testing/Temporary/LastTest.log" || echo "All tests passed!" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-        else
-          echo "No test log found." >> $GITHUB_STEP_SUMMARY
-        fi
+        echo "Tests completed. See detailed output in the 'Run Tests' step above." >> $GITHUB_STEP_SUMMARY
