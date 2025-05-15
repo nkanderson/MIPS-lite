@@ -64,8 +64,3 @@ TEST(StatsTest, AverageStallsPerHazard) {
     stats.incrementDataHazards();  // now 2 hazards total
     EXPECT_FLOAT_EQ(stats.averageStallsPerHazard(), 1.0f);
 }
-
-// TODO: Delete me when GitHub Actions is working
-TEST(StatsTest, IntentionallyFailing) {
-    EXPECT_TRUE(false) << "This test is intentionally failing to verify GitHub Actions reporting";
-}
