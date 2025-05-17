@@ -1,0 +1,219 @@
+[proc] Executing command: "C:\Program Files\CMake\bin\ctest.exe" -C Debug -T test --output-on-failure -R ^Cpp17Features\.StructuredBindings$
+[ctest] Test project C:/Users/nguye/OneDrive/Documents/ECE486/Final Project/MIPS-lite2/MIPS-lite/build/Debug
+[ctest]     Start 1: Cpp17Features.StructuredBindings
+[ctest] 1/1 Test #1: Cpp17Features.StructuredBindings ...   Passed    0.01 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Total Test time (real) =   0.06 sec
+[ctest] CTest finished with return code 0
+[proc] Executing command: "C:\Program Files\CMake\bin\ctest.exe" -C Debug -T test --output-on-failure -R ^Cpp17Features\.StandardVersion$
+[ctest] Test project C:/Users/nguye/OneDrive/Documents/ECE486/Final Project/MIPS-lite2/MIPS-lite/build/Debug
+[ctest]     Start 2: Cpp17Features.StandardVersion
+[ctest] 1/1 Test #2: Cpp17Features.StandardVersion ....   Passed    0.02 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Total Test time (real) =   0.06 sec
+[ctest] CTest finished with return code 0
+[proc] Executing command: "C:\Program Files\CMake\bin\ctest.exe" -C Debug -T test --output-on-failure -R ^Cpp17Features\.ConstexprIf$
+[ctest] Test project C:/Users/nguye/OneDrive/Documents/ECE486/Final Project/MIPS-lite2/MIPS-lite/build/Debug
+[ctest]     Start 3: Cpp17Features.ConstexprIf
+[ctest] 1/1 Test #3: Cpp17Features.ConstexprIf ........   Passed    0.01 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Total Test time (real) =   0.07 sec
+[ctest] CTest finished with return code 0
+[proc] Executing command: "C:\Program Files\CMake\bin\ctest.exe" -C Debug -T test --output-on-failure -R ^StandardLibrary\.VectorOperations$
+[ctest] Test project C:/Users/nguye/OneDrive/Documents/ECE486/Final Project/MIPS-lite2/MIPS-lite/build/Debug
+[ctest]     Start 4: StandardLibrary.VectorOperations
+[ctest] 1/1 Test #4: StandardLibrary.VectorOperations ...   Passed    0.02 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Total Test time (real) =   0.04 sec
+[ctest] CTest finished with return code 0
+[proc] Executing command: "C:\Program Files\CMake\bin\ctest.exe" -C Debug -T test --output-on-failure -R ^Environment\.Information$
+[ctest] Test project C:/Users/nguye/OneDrive/Documents/ECE486/Final Project/MIPS-lite2/MIPS-lite/build/Debug
+[ctest]     Start 5: Environment.Information
+[ctest] 1/1 Test #5: Environment.Information ..........   Passed    0.02 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Total Test time (real) =   0.04 sec
+[ctest] CTest finished with return code 0
+[proc] Executing command: "C:\Program Files\CMake\bin\ctest.exe" -C Debug -T test --output-on-failure -R ^MemoryParserTest\.Constructor$
+[ctest] Test project C:/Users/nguye/OneDrive/Documents/ECE486/Final Project/MIPS-lite2/MIPS-lite/build/Debug
+[ctest]     Start 6: MemoryParserTest.Constructor
+[ctest] 1/1 Test #6: MemoryParserTest.Constructor .....   Passed    0.02 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Total Test time (real) =   0.08 sec
+[ctest] CTest finished with return code 0
+[proc] Executing command: "C:\Program Files\CMake\bin\ctest.exe" -C Debug -T test --output-on-failure -R ^MemoryParserTest\.FileSize$
+[ctest] Test project C:/Users/nguye/OneDrive/Documents/ECE486/Final Project/MIPS-lite2/MIPS-lite/build/Debug
+[ctest]     Start 7: MemoryParserTest.FileSize
+[ctest] 1/1 Test #7: MemoryParserTest.FileSize ........   Passed    0.02 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Total Test time (real) =   0.06 sec
+[ctest] CTest finished with return code 0
+[proc] Executing command: "C:\Program Files\CMake\bin\ctest.exe" -C Debug -T test --output-on-failure -R ^MemoryParserTest\.ReadEntireFileSequentially$
+[ctest] Test project C:/Users/nguye/OneDrive/Documents/ECE486/Final Project/MIPS-lite2/MIPS-lite/build/Debug
+[ctest]     Start 8: MemoryParserTest.ReadEntireFileSequentially
+[ctest] 1/1 Test #8: MemoryParserTest.ReadEntireFileSequentially ...   Passed    0.02 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Total Test time (real) =   0.05 sec
+[ctest] CTest finished with return code 0
+[proc] Executing command: "C:\Program Files\CMake\bin\ctest.exe" -C Debug -T test --output-on-failure -R ^MemoryParserTest\.readMemoryOutOfBounds$
+[ctest] Test project C:/Users/nguye/OneDrive/Documents/ECE486/Final Project/MIPS-lite2/MIPS-lite/build/Debug
+[ctest]     Start 9: MemoryParserTest.readMemoryOutOfBounds
+[ctest] 1/1 Test #9: MemoryParserTest.readMemoryOutOfBounds ...   Passed    0.02 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Total Test time (real) =   0.07 sec
+[ctest] CTest finished with return code 0
+[proc] Executing command: "C:\Program Files\CMake\bin\ctest.exe" -C Debug -T test --output-on-failure -R ^MemoryParserTest\.readMemoryUnaligned$
+[ctest] Test project C:/Users/nguye/OneDrive/Documents/ECE486/Final Project/MIPS-lite2/MIPS-lite/build/Debug
+[ctest]     Start 10: MemoryParserTest.readMemoryUnaligned
+[ctest] 1/1 Test #10: MemoryParserTest.readMemoryUnaligned ...   Passed    0.03 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Total Test time (real) =   0.08 sec
+[ctest] CTest finished with return code 0
+[proc] Executing command: "C:\Program Files\CMake\bin\ctest.exe" -C Debug -T test --output-on-failure -R ^MemoryParserTest\.readMemoryValid$
+[ctest] Test project C:/Users/nguye/OneDrive/Documents/ECE486/Final Project/MIPS-lite2/MIPS-lite/build/Debug
+[ctest]     Start 11: MemoryParserTest.readMemoryValid
+[ctest] 1/1 Test #11: MemoryParserTest.readMemoryValid ...   Passed    0.03 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Total Test time (real) =   0.05 sec
+[ctest] CTest finished with return code 0
+[proc] Executing command: "C:\Program Files\CMake\bin\ctest.exe" -C Debug -T test --output-on-failure -R ^MemoryParserTest\.readMemoryWithAddedZeroLines$
+[ctest] Test project C:/Users/nguye/OneDrive/Documents/ECE486/Final Project/MIPS-lite2/MIPS-lite/build/Debug
+[ctest]     Start 12: MemoryParserTest.readMemoryWithAddedZeroLines
+[ctest] 1/1 Test #12: MemoryParserTest.readMemoryWithAddedZeroLines ...   Passed    0.03 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Total Test time (real) =   0.05 sec
+[ctest] CTest finished with return code 0
+[proc] Executing command: "C:\Program Files\CMake\bin\ctest.exe" -C Debug -T test --output-on-failure -R ^MemoryParserTest\.jumpToInstructionUnaligned$
+[ctest] Test project C:/Users/nguye/OneDrive/Documents/ECE486/Final Project/MIPS-lite2/MIPS-lite/build/Debug
+[ctest]     Start 13: MemoryParserTest.jumpToInstructionUnaligned
+[ctest] 1/1 Test #13: MemoryParserTest.jumpToInstructionUnaligned ...   Passed    0.02 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Total Test time (real) =   0.07 sec
+[ctest] CTest finished with return code 0
+[proc] Executing command: "C:\Program Files\CMake\bin\ctest.exe" -C Debug -T test --output-on-failure -R ^MemoryParserTest\.jumpToInstructionOutOfBounds$
+[ctest] Test project C:/Users/nguye/OneDrive/Documents/ECE486/Final Project/MIPS-lite2/MIPS-lite/build/Debug
+[ctest]     Start 14: MemoryParserTest.jumpToInstructionOutOfBounds
+[ctest] 1/1 Test #14: MemoryParserTest.jumpToInstructionOutOfBounds ...   Passed    0.03 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Total Test time (real) =   0.05 sec
+[ctest] CTest finished with return code 0
+[proc] Executing command: "C:\Program Files\CMake\bin\ctest.exe" -C Debug -T test --output-on-failure -R ^MemoryParserTest\.writeMemoryValid$
+[ctest] Test project C:/Users/nguye/OneDrive/Documents/ECE486/Final Project/MIPS-lite2/MIPS-lite/build/Debug
+[ctest]     Start 15: MemoryParserTest.writeMemoryValid
+[ctest] 1/1 Test #15: MemoryParserTest.writeMemoryValid ...   Passed    0.03 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Total Test time (real) =   0.05 sec
+[ctest] CTest finished with return code 0
+[proc] Executing command: "C:\Program Files\CMake\bin\ctest.exe" -C Debug -T test --output-on-failure -R ^MemoryParserTest\.writeMemoryUnaligned$
+[ctest] Test project C:/Users/nguye/OneDrive/Documents/ECE486/Final Project/MIPS-lite2/MIPS-lite/build/Debug
+[ctest]     Start 16: MemoryParserTest.writeMemoryUnaligned
+[ctest] 1/1 Test #16: MemoryParserTest.writeMemoryUnaligned ...   Passed    0.07 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Total Test time (real) =   0.12 sec
+[ctest] CTest finished with return code 0
+[proc] Executing command: "C:\Program Files\CMake\bin\ctest.exe" -C Debug -T test --output-on-failure -R ^MemoryParserTest\.writeMemoryOutOfBounds$
+[ctest] Test project C:/Users/nguye/OneDrive/Documents/ECE486/Final Project/MIPS-lite2/MIPS-lite/build/Debug
+[ctest]     Start 17: MemoryParserTest.writeMemoryOutOfBounds
+[ctest] 1/1 Test #17: MemoryParserTest.writeMemoryOutOfBounds ...   Passed    0.02 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Total Test time (real) =   0.07 sec
+[ctest] CTest finished with return code 0
+[proc] Executing command: "C:\Program Files\CMake\bin\ctest.exe" -C Debug -T test --output-on-failure -R ^MemoryParserTest\.writeReadInteraction$
+[ctest] Test project C:/Users/nguye/OneDrive/Documents/ECE486/Final Project/MIPS-lite2/MIPS-lite/build/Debug
+[ctest]     Start 18: MemoryParserTest.writeReadInteraction
+[ctest] 1/1 Test #18: MemoryParserTest.writeReadInteraction ...   Passed    0.03 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Total Test time (real) =   0.07 sec
+[ctest] CTest finished with return code 0
+[proc] Executing command: "C:\Program Files\CMake\bin\ctest.exe" -C Debug -T test --output-on-failure -R ^MemoryParserTest\.writeMemoryBeyondCurrentSize$
+[ctest] Test project C:/Users/nguye/OneDrive/Documents/ECE486/Final Project/MIPS-lite2/MIPS-lite/build/Debug
+[ctest]     Start 19: MemoryParserTest.writeMemoryBeyondCurrentSize
+[ctest] 1/1 Test #19: MemoryParserTest.writeMemoryBeyondCurrentSize ...   Passed    0.02 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Total Test time (real) =   0.07 sec
+[ctest] CTest finished with return code 0
+[proc] Executing command: "C:\Program Files\CMake\bin\ctest.exe" -C Debug -T test --output-on-failure -R ^StatsTest\.InstructionCategoryCounts$
+[ctest] Test project C:/Users/nguye/OneDrive/Documents/ECE486/Final Project/MIPS-lite2/MIPS-lite/build/Debug
+[ctest]     Start 20: StatsTest.InstructionCategoryCounts
+[ctest] 1/1 Test #20: StatsTest.InstructionCategoryCounts ...   Passed    0.01 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] libs    =   0.01 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.03 sec
+[ctest] CTest finished with return code 0
+[proc] Executing command: "C:\Program Files\CMake\bin\ctest.exe" -C Debug -T test --output-on-failure -R ^StatsTest\.RegisterAndMemoryStorage$
+[ctest] Test project C:/Users/nguye/OneDrive/Documents/ECE486/Final Project/MIPS-lite2/MIPS-lite/build/Debug
+[ctest]     Start 21: StatsTest.RegisterAndMemoryStorage
+[ctest] 1/1 Test #21: StatsTest.RegisterAndMemoryStorage ...   Passed    0.01 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] libs    =   0.01 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.03 sec
+[ctest] CTest finished with return code 0
+[proc] Executing command: "C:\Program Files\CMake\bin\ctest.exe" -C Debug -T test --output-on-failure -R ^StatsTest\.MetricCounters$
+[ctest] Test project C:/Users/nguye/OneDrive/Documents/ECE486/Final Project/MIPS-lite2/MIPS-lite/build/Debug
+[ctest]     Start 22: StatsTest.MetricCounters
+[ctest] 1/1 Test #22: StatsTest.MetricCounters .........   Passed    0.01 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] libs    =   0.01 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.06 sec
+[ctest] CTest finished with return code 0
+[proc] Executing command: "C:\Program Files\CMake\bin\ctest.exe" -C Debug -T test --output-on-failure -R ^StatsTest\.AverageStallsPerHazard$
+[ctest] Test project C:/Users/nguye/OneDrive/Documents/ECE486/Final Project/MIPS-lite2/MIPS-lite/build/Debug
+[ctest]     Start 23: StatsTest.AverageStallsPerHazard
+[ctest] 1/1 Test #23: StatsTest.AverageStallsPerHazard ...   Passed    0.01 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] libs    =   0.01 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.06 sec
+[ctest] CTest finished with return code 0
