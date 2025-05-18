@@ -35,6 +35,7 @@ FetchContent_MakeAvailable(googletest)
 
 set(SOURCE_FILES
     src/mips_mem_parser.cpp
+    src/utilities.cpp
 )
 
 # Create the library that will be used by tests and main executable
