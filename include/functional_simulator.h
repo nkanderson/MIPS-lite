@@ -22,8 +22,13 @@ class Instruction;
  */
 template <typename T>
 struct PipelineData {
-    T result;                       ///< Intermediate result to be forwarded or written
-    std::optional<uint8_t> wb_reg;  ///< Destination register number (std::nullopt if N/A)
+    Instruction* instr;                ///< Pointer to the instruction being processed
+    T result;                          ///< Intermediate arithemetic or effective address value
+    std::optional<uint8_t> wb_reg;     ///< Destination register number (std::nullopt if N/A)
+    std::optional<bool> branch_taken;  ///< Optional flag for branch taken (if applicable)
+    std::optional<int32_t> str_val;    ///< Optional store value for STW instructions
+    int32_t reg_a;                     ///< ALU Source 1
+    int32_t reg_b;                     ///< ALU Source 2
 };
 
 /**
