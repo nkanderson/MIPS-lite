@@ -1,10 +1,9 @@
 # Create test executable for utilities test
-add_executable(utilities_test utilities_test.cpp utilities.cpp)
+add_executable(utilities_test utilities_test.cpp)
 # Set the include directories for the test executable
 target_include_directories(utilities_test
     PRIVATE
     ${CMAKE_SOURCE_DIR}/include
-    ${CMAKE_BINARY_DIR}/include
 )
 
 
