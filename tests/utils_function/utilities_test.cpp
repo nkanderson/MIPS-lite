@@ -1,7 +1,13 @@
 #include "utilities.h"
 
+#include <gtest/gtest.h>
+#include <sys/types.h>
+
 #include <cassert>
 #include <cstdint>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -18,6 +24,7 @@ uint32_t hexStringToUint(const std::string& hexStr) {
 }
 
 // Run tests for sign extension with hexadecimal inputs
+// Keeping as helper function just in case. Can delete if needed.
 void runSignExtendHexTests() {
     std::vector<std::string> sample_lines = {"040103E8", "040204B0", "00003800", "00004000",
                                              "00005000", "040B0032", "040C0020", "00000000",
@@ -43,7 +50,31 @@ void runSignExtendHexTests() {
 }
 
 // Main function
-int main() {
-    runSignExtendHexTests();
+/* int main() {
+    // runSignExtendHexTests();
+
+
     return 0;
+
+}*/
+
+TEST(UtilitiesTest, HexConversionCheck) {
+    std::vector<std::string> sample_lines = {"040103E8", "040204B0", "00003800", "00004000",
+                                             "00005000", "040B0032", "040C0020", "00000000",
+                                             "00000000", "00000000", "00000000", "00000000",
+                                             "040103E8", "040204B0", "00003800", "00004000"};
+
+    for (const auto& line : sample_lines) {
+        uint32_t full_instruction = hexStringToUint(line);
+        int16_t immediate = static_cast<int16_t>(full_instruction & 0xFFFF);
+
+        int32_t extended = signExtend(immediate);
+
+        // Basic validation — immediate is properly sign-extended
+        if (immediate < 0) {
+            EXPECT_LT(extended, 0);
+        } else {
+            EXPECT_GE(extended, 0);
+        }
+    }
 }

@@ -22,4 +22,6 @@ target_link_libraries(utilities_test
 
 # Register with CTest using Google Test's discovery
 include(GoogleTest)
-gtest_discover_tests(utilities_test)
+gtest_discover_tests(utilities_test
+    PROPERTIES LABELS "utils"
+)
