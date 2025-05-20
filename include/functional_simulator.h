@@ -2,28 +2,60 @@
 
 #include <array>
 #include <cstdint>
+#include <memory>  // For smart pointers
 #include <optional>
 
 #include "memory_interface.h"
-#include "reg_type.h"
 #include "register_file.h"
 #include "stats.h"
 
-// Forward declarations of Instruction class
 class Instruction;
-
 /**
- * @struct PipelineData
- * @brief Holds intermediate pipeline data passed between stages.
+ * @struct PipelineStageData
+ * @brief Holds all data related to an instruction as it moves through the pipeline.
  *
- * This includes:
- * - `result`: an intermediate value (e.g., ALU result or memory load)
- * - `wb_reg`: the destination register number to write to in the WB stage, if any
+ * This structure encapsulates an instruction pointer along with all intermediate values
+ * and control signals needed as the instruction flows through the pipeline stages.
  */
-template <typename T>
-struct PipelineData {
-    T result;                       ///< Intermediate result to be forwarded or written
-    std::optional<uint8_t> wb_reg;  ///< Destination register number (std::nullopt if N/A)
+struct PipelineStageData {
+    std::unique_ptr<Instruction> instruction;  ///< Instruction object
+    uint32_t pc;           ///< Program counter value when instruction was fetched
+                           ///< TODO: I think we need to store PC at the time of the instruction
+                           ///< to accurately calculate PC relative addressing
+    uint32_t rs_value;     ///< Value read from rs register
+    uint32_t rt_value;     ///< Value read from rt register
+    uint32_t alu_result;   ///< Result of ALU operation or effective address
+    uint32_t memory_data;  ///< Data read from memory (if applicable)
+    std::optional<uint8_t> dest_reg;  ///< Destination register (if any)
+    bool branch_taken;                ///< Whether a branch is taken
+    uint32_t branch_target;           ///< Target address for branch/jump
+
+    // Constructor to initialize with default values
+    PipelineStageData()
+        : instruction(nullptr),
+          pc(0),
+          rs_value(0),
+          rt_value(0),
+          alu_result(0),
+          memory_data(0),
+          dest_reg(std::nullopt),
+          branch_taken(false),
+          branch_target(0) {}
+
+    // Constructor with instruction
+    explicit PipelineStageData(Instruction* instr, uint32_t program_counter)
+        : instruction(std::move(instr)),
+          pc(program_counter),
+          rs_value(0),
+          rt_value(0),
+          alu_result(0),
+          memory_data(0),
+          dest_reg(std::nullopt),
+          branch_taken(false),
+          branch_target(0) {}
+
+    // Check if stage is a bubble (no instruction)
+    bool isEmpty() const { return instruction == nullptr; }
 };
 
 /**
@@ -68,11 +100,12 @@ class FunctionalSimulator {
     uint8_t getStall() const;
 
     /**
-     * @brief Get the instruction pointer at the given pipeline stage.
+     * @brief Get the pipeline stage data at the given pipeline stage.
      * @param stage Index (0 to 4) of the pipeline stage.
-     * @return Instruction pointer at that stage, or nullptr if uninitialized.
+     * @return Pointer to the PipelineStageData at that stage, or nullptr if empty.
+     * @throws std::out_of_range if the stage index is invalid.
      */
-    Instruction* getPipelineStage(int stage) const;
+    const PipelineStageData* getPipelineStage(int stage) const;
 
     // Setter methods
 
@@ -99,45 +132,70 @@ class FunctionalSimulator {
      * @brief Decode by reading registers referenced by the instruction.
      * @param instr Pointer to the instruction to decode.
      */
-    void instructionDecode(Instruction* instr);
+    void instructionDecode();
 
     /**
      * @brief Execute by performing ALU operation from the instruction.
      * @param instr Pointer to the instruction to execute.
      */
-    void execute(Instruction* instr);
+    void execute();
 
     /**
      * @brief Perform memory access for the instruction.
      * @param instr Pointer to the instruction.
      */
-    void memory(Instruction* instr);
+    void memory();
 
     /**
      * @brief Write the result back to the register file.
      * @param instr Pointer to the instruction.
      */
-    void writeBack(Instruction* instr);
+    void writeBack();
 
     /**
-     * @brief Advance all pipeline registers by one cycle.
+     * @brief Advance all pipeline stages by one cycle.
      *
-     * This clocks each pipeline register, promoting its next value to current.
+     * This shifts each pipeline stage, moving instructions forward in the pipeline.
      * Should be called at the end of each simulation cycle.
      */
-    void clockPipelineRegisters();
+    void advancePipeline();
 
     /**
-     * @brief Pipeline registers between each stage. Each register holds intermediate
-     *        values and target write-back registers.
+     * @brief Perform one complete cycle of the pipeline.
      *
-     * These are intended to model the flow of decoded operand values and intermediate
-     * results between pipeline stages, enabling inspection or forwarding by register number.
+     * This method should handle execution of the active pipeline stages in the correct order. Note
+     * that writes must happen before reads
+     * 1. Execution of active pipeline stages
+     * 2. Advancing the pipeline
+     * 3. Maybe handle stalls or flushing unless we want to implement elsewhere
+     * 4. Update the program counter
      */
-    reg<PipelineData<uint32_t> > ifid_reg;   ///< Between instruction fetch and decode
-    reg<PipelineData<uint32_t> > idex_reg;   ///< Between decode and execute
-    reg<PipelineData<uint32_t> > exmem_reg;  ///< Between execute and memory
-    reg<PipelineData<uint32_t> > memwb_reg;  ///< Between memory and writeback
+    void cycle();
+
+    /**
+     * @brief Check for data hazards and stall if necessary.
+     * @return True if a stall is needed, false otherwise.
+     */
+    bool detectHazards();
+
+    /**
+     * @brief Check if instruction at given stage is a bubble.
+     * @param stage Index of the pipeline stage to check.
+     * @return True if the stage contains no valid instruction.
+     */
+    bool isStageEmpty(int stage) const;
+
+    /**
+     * @brief Enumeration for pipeline stages
+     */
+    enum PipelineStage {
+        FETCH = 0,
+        DECODE = 1,
+        EXECUTE = 2,
+        MEMORY = 3,
+        WRITEBACK = 4,
+        NUM_STAGES = 5
+    };
 
    private:
     /// Program Counter
@@ -146,8 +204,8 @@ class FunctionalSimulator {
     /// General purpose registers
     RegisterFile* register_file;
 
-    /// 5-stage pipeline of instruction pointers
-    std::array<Instruction*, 5> pipeline;
+    /// 5-stage pipeline array
+    std::array<std::unique_ptr<PipelineStageData>, PipelineStage::NUM_STAGES> pipeline;
 
     /// Stats instance to track runtime metrics
     Stats* stats;
@@ -160,4 +218,26 @@ class FunctionalSimulator {
 
     /// Countdown of the required stall cycles
     uint8_t stall;
+
+    /**
+     * @brief Helper method to check if an instruction writes to a register.
+     * @param instr Pointer to the instruction to check.
+     * @return True if the instruction writes to a register, false otherwise.
+     */
+    bool isRegisterWriteInstruction(const Instruction* instr) const;
+
+    /**
+     * @brief Helper method to determine the destination register for an instruction.
+     * @param instr Pointer to the instruction to check.
+     * @return The destination register number, or std::nullopt if none.
+     */
+    std::optional<uint8_t> getDestinationRegister(const Instruction* instr) const;
+
+    /**
+     * @brief Helper method to implement forwarding logic.
+     * @param stage Stage index that needs the value.
+     * @param reg_num Register number to forward.
+     * @return Forwarded value if available, otherwise register value.
+     */
+    uint32_t getForwardedValue(int stage, uint8_t reg_num);
 };
