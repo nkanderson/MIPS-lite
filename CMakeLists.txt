@@ -34,15 +34,15 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 
 set(SOURCE_FILES
+    src/functional_simulator.cpp
     src/mips_mem_parser.cpp
     src/utilities.cpp
+    src/mips_instruction.cpp
+    src/stats.cpp
 )
 
 # Create the library that will be used by tests and main executable
 add_library(mips_lite_lib ${SOURCE_FILES})
-
-add_library(stats STATIC src/stats.cpp)
-target_include_directories(stats PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
 # Create main binary target (will add actual source files later)
 # add_executable(mips_simulator src/main.cpp)
@@ -53,3 +53,7 @@ add_subdirectory(tests/proj_setup)
 add_subdirectory(tests/mem_parser)
 add_subdirectory(tests/libs)
 add_subdirectory(tests/utils_function)
+add_subdirectory(tests/mips_instruction)
+add_subdirectory(tests/reg_type)
+add_subdirectory(tests/functional_simulator)
+
