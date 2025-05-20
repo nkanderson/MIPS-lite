@@ -3,3 +3,26 @@ JR R1
 ADDI R2 R0 10
 ADDI R2 R0 10
 HALT
+
+Expected stats:
+5 total instructions
+3 arithmetic ops
+2 control flow ops
+7 total cycles with NO forwarding
+- Need to confirm this, assumes:
+  - JR has 2 stalls
+  - New address is known at end of JR EX stage
+  - HALT is fetched in same cycle as JR memory
+2 stalls total
+
+6 total cycles with forwarding
+- Need to confirm this, assumes:
+  - JR has 1 stall
+  - New address is known at end of JR EX stage
+  - HALT is fetched in same cycle as JR memory
+1 stall total
+
+PC at 0x10 (16, or the 5th instruction)
+
+Changed registers and their contents:
+R1 = 12
