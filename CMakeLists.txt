@@ -1,5 +1,5 @@
 ### Root CMakeLists.txt for MIPS-Lite project
-cmake_minimum_required(VERSION 4.0.1) 
+cmake_minimum_required(VERSION 3.15) 
 
 # Always define toolchain file so we have same setup
 set(CMAKE_TOOLCHAIN_FILE "${CMAKE_SOURCE_DIR}/cmake/toolchain.cmake")
