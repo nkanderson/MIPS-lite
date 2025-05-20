@@ -63,6 +63,7 @@ void FunctionalSimulator::writeBack() {
 }
 
 void FunctionalSimulator::advancePipeline() {
+    // TODO: Might need to add more checks here
     // Release writeback stage
     pipeline[PipelineStage::WRITEBACK].reset();  // Smart pointer will delete the object
 
@@ -80,7 +81,7 @@ void FunctionalSimulator::advancePipeline() {
 }
 
 void FunctionalSimulator::cycle() {
-    // Execute stages in reverse order since each stage depends on the previous one
+    // Execute stages in reverse order since writeback should happen first
     // TODO: Might need to add other control logic here
     writeBack();
     memory();
