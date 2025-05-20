@@ -27,7 +27,6 @@ struct PipelineStageData {
     uint32_t alu_result;   ///< Result of ALU operation or effective address
     uint32_t memory_data;  ///< Data read from memory (if applicable)
     std::optional<uint8_t> dest_reg;  ///< Destination register (if any)
-    bool branch_taken;                ///< Whether a branch is taken
     uint32_t branch_target;           ///< Target address for branch/jump
 
     // Constructor to initialize with default values
@@ -39,7 +38,6 @@ struct PipelineStageData {
           alu_result(0),
           memory_data(0),
           dest_reg(std::nullopt),
-          branch_taken(false),
           branch_target(0) {}
 
     // Constructor with instruction
@@ -51,7 +49,6 @@ struct PipelineStageData {
           alu_result(0),
           memory_data(0),
           dest_reg(std::nullopt),
-          branch_taken(false),
           branch_target(0) {}
 
     // Check if stage is a bubble (no instruction)
@@ -98,6 +95,8 @@ class FunctionalSimulator {
      * @return Number of remaining stall cycles.
      */
     uint8_t getStall() const;
+
+    static constexpr int getNumStages() { return NUM_STAGES; }
 
     /**
      * @brief Get the pipeline stage data at the given pipeline stage.
@@ -194,18 +193,19 @@ class FunctionalSimulator {
         EXECUTE = 2,
         MEMORY = 3,
         WRITEBACK = 4,
-        NUM_STAGES = 5
     };
 
    private:
     /// Program Counter
+    static constexpr int NUM_STAGES = 5;
     uint32_t pc;
+    bool branch_taken;
 
     /// General purpose registers
     RegisterFile* register_file;
 
     /// 5-stage pipeline array
-    std::array<std::unique_ptr<PipelineStageData>, PipelineStage::NUM_STAGES> pipeline;
+    std::array<std::unique_ptr<PipelineStageData>, NUM_STAGES> pipeline;
 
     /// Stats instance to track runtime metrics
     Stats* stats;
