@@ -77,7 +77,7 @@ TEST_F(FunctionalSimulatorTest, SettersAndGetters) {
 
 // Test pipeline stages initially empty
 TEST_F(FunctionalSimulatorTest, PipelineInitiallyEmpty) {
-    for (int i = 0; i < FunctionalSimulator::PipelineStage::NUM_STAGES; ++i) {
+    for (int i = 0; i < FunctionalSimulator::getNumStages(); ++i) {
         EXPECT_TRUE(sim->isStageEmpty(i));
         EXPECT_EQ(sim->getPipelineStage(i), nullptr);
     }
@@ -109,7 +109,16 @@ TEST_F(FunctionalSimulatorTest, StallDecrement) {
 
 // Test that getPipelineStage returns nullptr for empty stages
 TEST_F(FunctionalSimulatorTest, GetPipelineStage) {
-    for (int i = 0; i < FunctionalSimulator::PipelineStage::NUM_STAGES; ++i) {
+    for (int i = 0; i < FunctionalSimulator::getNumStages(); ++i) {
         EXPECT_EQ(sim->getPipelineStage(i), nullptr);
     }
 }
+
+/*
+// The following or something similar may be used to test individual methods
+// with mocked memory parser methods like readInstruction
+// Requires addition of `using ::testing::Return;` above
+TEST_F(FunctionalSimulatorTest, FetchReadsInstructionFromMemory) {
+    EXPECT_CALL(mem, readInstruction(0)).Times(1).WillOnce(Return(0x040103E8));
+    sim->instructionFetch();  // Assuming it internally calls readInstruction
+*/

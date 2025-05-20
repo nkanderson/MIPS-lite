@@ -28,23 +28,21 @@ void FunctionalSimulator::setPC(uint32_t new_pc) { pc = new_pc; }
 void FunctionalSimulator::setStall(uint8_t cycles) { stall = cycles; }
 
 const PipelineStageData* FunctionalSimulator::getPipelineStage(int stage) const {
-    if (stage < 0 || stage >= PipelineStage::NUM_STAGES) {
+    if (stage < 0 || stage >= NUM_STAGES) {
         throw std::out_of_range("Pipeline stage index out of range");
     }
     return pipeline[stage].get();  // Use .get() to return the raw pointer
 }
 
 bool FunctionalSimulator::isStageEmpty(int stage) const {
-    if (stage < 0 || stage >= PipelineStage::NUM_STAGES) {
+    if (stage < 0 || stage >= NUM_STAGES) {
         throw std::out_of_range("Pipeline stage index out of range");
     }
     return pipeline[stage] == nullptr;
 }
 
 void FunctionalSimulator::instructionFetch() {
-    if (stall > 0) {
-        return;  // Skip fetch if stall is active
-    }
+    // Stub: TODO
 }
 
 void FunctionalSimulator::instructionDecode() {
