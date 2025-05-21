@@ -1,6 +1,7 @@
 # Create test executable for FunctionalSimulator tests
 set(TEST_NAME  functional_simulator_test)
 add_executable(${TEST_NAME} functional_simulator_tests.cpp)
+# add_executable(${TEST_NAME} functional_simulator_tests.cpp functional_simulator_integration_tests.cpp)
 
 # Set C++ standard for the test (redundant but kept for clarity)
 target_compile_features(${TEST_NAME} PRIVATE cxx_std_17)
