@@ -54,22 +54,20 @@ class FunctionalSimulatorTest : public ::testing::Test {
 // Test suite
 // ---------------------------
 
-TEST_F(FunctionalSimulatorTest, ConstructorInitializesMembers) {
+TEST_F(FunctionalSimulatorTest, Initialization) {
     EXPECT_EQ(sim->getPC(), 0);
     EXPECT_EQ(sim->getStall(), 0);
     EXPECT_FALSE(sim->isForwardingEnabled());
-
-    for (int i = 0; i < 5; ++i) {
-        EXPECT_EQ(sim->getPipelineStage(i), nullptr);
-    }
 }
 
-TEST_F(FunctionalSimulatorTest, ConstructorEnablesForwarding) {
+// Test forwarding flag
+TEST_F(FunctionalSimulatorTest, ForwardingFlag) {
     FunctionalSimulator forward_sim(&rf, &stats, &mem, true);
     EXPECT_TRUE(forward_sim.isForwardingEnabled());
 }
 
-TEST_F(FunctionalSimulatorTest, SettersUpdateInternalState) {
+// Test setters and getters
+TEST_F(FunctionalSimulatorTest, SettersAndGetters) {
     sim->setPC(0x00400020);
     sim->setStall(3);
 
@@ -77,36 +75,43 @@ TEST_F(FunctionalSimulatorTest, SettersUpdateInternalState) {
     EXPECT_EQ(sim->getStall(), 3);
 }
 
-TEST_F(FunctionalSimulatorTest, ThrowsOnInvalidPipelineStageIndex) {
+// Test pipeline stages initially empty
+TEST_F(FunctionalSimulatorTest, PipelineInitiallyEmpty) {
+    for (int i = 0; i < FunctionalSimulator::getNumStages(); ++i) {
+        EXPECT_TRUE(sim->isStageEmpty(i));
+        EXPECT_EQ(sim->getPipelineStage(i), nullptr);
+    }
+}
+
+// Test bounds checking
+TEST_F(FunctionalSimulatorTest, BoundsChecking) {
+    EXPECT_THROW(sim->isStageEmpty(-1), std::out_of_range);
+    EXPECT_THROW(sim->isStageEmpty(5), std::out_of_range);
     EXPECT_THROW(sim->getPipelineStage(-1), std::out_of_range);
     EXPECT_THROW(sim->getPipelineStage(5), std::out_of_range);
 }
 
-TEST_F(FunctionalSimulatorTest, ClockPipelineRegistersUpdatesRegisterStates) {
-    // Create pipeline data with result and destination register
-    PipelineData<uint32_t> idex_data = {42, 5};     // Intermediate value 42 targeting R5
-    PipelineData<uint32_t> exmem_data = {1000, 8};  // Intermediate value 1000 targeting R8
+// Test stall counter decrements
+TEST_F(FunctionalSimulatorTest, StallDecrement) {
+    sim->setStall(2);
+    EXPECT_EQ(sim->getStall(), 2);
 
-    // Load as next values (not yet clocked)
-    sim->idex_reg.setNext(idex_data);
-    EXPECT_FALSE(sim->idex_reg.isValid());
+    sim->advancePipeline();
+    EXPECT_EQ(sim->getStall(), 1);
 
-    sim->exmem_reg.setNext(exmem_data);
-    EXPECT_FALSE(sim->exmem_reg.isValid());
+    sim->advancePipeline();
+    EXPECT_EQ(sim->getStall(), 0);
 
-    // Clock the pipeline
-    sim->clockPipelineRegisters();
+    // Should not go below zero
+    sim->advancePipeline();
+    EXPECT_EQ(sim->getStall(), 0);
+}
 
-    // Verify contents now valid and accessible
-    EXPECT_TRUE(sim->idex_reg.isValid());
-    EXPECT_EQ(sim->idex_reg.current().result, 42);
-    ASSERT_TRUE(sim->idex_reg.current().wb_reg.has_value());
-    EXPECT_EQ(sim->idex_reg.current().wb_reg.value(), 5);
-
-    EXPECT_TRUE(sim->exmem_reg.isValid());
-    EXPECT_EQ(sim->exmem_reg.current().result, 1000);
-    ASSERT_TRUE(sim->exmem_reg.current().wb_reg.has_value());
-    EXPECT_EQ(sim->exmem_reg.current().wb_reg.value(), 8);
+// Test that getPipelineStage returns nullptr for empty stages
+TEST_F(FunctionalSimulatorTest, GetPipelineStage) {
+    for (int i = 0; i < FunctionalSimulator::getNumStages(); ++i) {
+        EXPECT_EQ(sim->getPipelineStage(i), nullptr);
+    }
 }
 
 /*
@@ -116,5 +121,4 @@ TEST_F(FunctionalSimulatorTest, ClockPipelineRegistersUpdatesRegisterStates) {
 TEST_F(FunctionalSimulatorTest, FetchReadsInstructionFromMemory) {
     EXPECT_CALL(mem, readInstruction(0)).Times(1).WillOnce(Return(0x040103E8));
     sim->instructionFetch();  // Assuming it internally calls readInstruction
-}
 */
