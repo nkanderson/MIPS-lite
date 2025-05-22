@@ -6,6 +6,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <cstdint>
 #include <memory>
 
 #include "functional_simulator.h"
@@ -33,7 +34,6 @@ class ExecuteStageTest : public ::testing::Test {
     NiceMock<MockMemoryParser> mem;
     std::unique_ptr<FunctionalSimulator> sim;
 
-    // Validated ISA instructions (keeping your exact values)
     static constexpr uint32_t ADD_INSTR = 0x00221800;      // ADD $3, $1, $2
     static constexpr uint32_t SUB_INSTR = 0x08221800;      // SUB $3, $1, $2
     static constexpr uint32_t MUL_INSTR = 0x10221800;      // MUL $3, $1, $2
@@ -45,13 +45,6 @@ class ExecuteStageTest : public ::testing::Test {
 
     void SetUp() override { 
         sim = std::make_unique<FunctionalSimulator>(&rf, &stats, &mem, true);
-        
-        // Initialize register file with test values
-        rf.write(1, 100);
-        rf.write(2, 200);
-        rf.write(3, 300);
-        rf.write(5, 2048);  // For JR test
-        rf.write(8, 800);
     }
 
     // Helper to set up execute stage with an instruction and data
@@ -98,6 +91,21 @@ TEST_F(ExecuteStageTest, ExecuteADD) {
 
     // Verify the ALU result is correct (10 + 20 = 30)
     EXPECT_EQ(execute_data->alu_result, 30);
+    EXPECT_TRUE(execute_data->dest_reg.has_value());
+    EXPECT_EQ(execute_data->dest_reg.value(), 3);
+}
+
+// Test ADD instruction but make operands negative
+TEST_F(ExecuteStageTest, ExecuteADDNegative) {
+    // Set up execute stage with ADD instruction and negative values
+    setupExecuteStage(ADD_INSTR, static_cast<uint32_t>(-10), static_cast<uint32_t>(-20), 3);  // rs=-10, rt=-20, dest=3
+
+    // Execute the instruction
+    sim->execute();
+
+    // Verify the ALU result is correct (-10 + -20 = -30)
+    const PipelineStageData* execute_data = getExecuteStageData();
+    EXPECT_EQ(execute_data->alu_result, -30);
     EXPECT_TRUE(execute_data->dest_reg.has_value());
     EXPECT_EQ(execute_data->dest_reg.value(), 3);
 }
