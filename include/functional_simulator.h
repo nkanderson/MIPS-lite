@@ -240,4 +240,10 @@ class FunctionalSimulator {
      * @return Forwarded value if available, otherwise register value.
      */
     uint32_t getForwardedValue(int stage, uint8_t reg_num);
+
+// Allow functional simulator tests access to private class member pipeline
+#ifdef UNIT_TEST
+   public:
+    std::array<std::unique_ptr<PipelineStageData>, NUM_STAGES>& getPipeline() { return pipeline; }
+#endif
 };

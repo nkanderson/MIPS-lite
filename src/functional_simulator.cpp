@@ -58,8 +58,42 @@ void FunctionalSimulator::memory() {
     // Stub: Access memory if needed (load or store only)
 }
 
+/**
+ * @brief Writes the ALU result to the destination register in the WB (Write Back) stage.
+ *
+ * This method checks the WRITEBACK stage of the pipeline for a valid instruction. If the
+ * instruction has a destination register, the ALU result is written to the corresponding register
+ * in the register file. It also updates the statistics by tracking the modified register.
+ *
+ * If the WB stage is empty, as may be the case when a stall cycle has been inserted, no action is
+ * performed.
+ */
 void FunctionalSimulator::writeBack() {
-    // Stub: Write result back to register file, clear dirty bit
+    // Get reference to PipelineStageData pointer in WB stage
+    // using auto to automatically deduce the type
+    auto& wb_data = pipeline[WRITEBACK];
+
+    // In the case of a stall cycle or no instruction in
+    // the WB stage, just return
+    if (!wb_data || wb_data->isEmpty()) {
+        return;
+    }
+
+    // If there is a destination register value, write the
+    // ALU result value to it.
+    // NOTE: The alu_result member defaults to an initial value
+    // of zero, so that will be seen as a valid value whether or
+    // not an instruction has produced any alu_result.
+    if (wb_data->dest_reg.has_value()) {
+        uint8_t dest = wb_data->dest_reg.value();
+        uint32_t value = wb_data->alu_result;
+
+        // Write the value to the register file
+        register_file->write(dest, value);
+
+        // Add this to the stats tracking modified registers
+        stats->addRegister(dest);
+    }
 }
 
 void FunctionalSimulator::advancePipeline() {
