@@ -264,20 +264,6 @@ bool FunctionalSimulator::isRegisterWriteInstruction(const Instruction* instr) c
            opcode == mips_lite::opcode::LDW;
 }
 
-std::optional<uint8_t> FunctionalSimulator::getDestinationRegister(const Instruction* instr) const {
-    if (instr == nullptr || !isRegisterWriteInstruction(instr)) {
-        return std::nullopt;
-    }
-
-    // R-type instructions write to rd
-    if (instr->getInstructionType() == mips_lite::InstructionType::R_TYPE) {
-        return instr->getRd();
-    }
-
-    // I-type instructions that write to a register use rt as destination
-    return instr->getRt();
-}
-
 uint32_t FunctionalSimulator::readRegisterValue(uint8_t reg_num) {
     
     if (reg_num == 0) {
@@ -297,12 +283,4 @@ uint32_t FunctionalSimulator::readRegisterValue(uint8_t reg_num) {
     else {
         return register_file->read(reg_num);
     }
-}
-
-
-uint32_t FunctionalSimulator::getForwardedValue(int stage, uint8_t reg_num) {
-    (void)stage;
-    (void)reg_num;
-    // TODO: Delete Me
-    return 0;
 }
