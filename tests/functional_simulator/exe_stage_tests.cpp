@@ -33,223 +33,204 @@ class ExecuteStageTest : public ::testing::Test {
     NiceMock<MockMemoryParser> mem;
     std::unique_ptr<FunctionalSimulator> sim;
 
-    void SetUp() override { sim = std::make_unique<FunctionalSimulator>(&rf, &stats, &mem); }
+    // Validated ISA instructions (keeping your exact values)
+    static constexpr uint32_t ADD_INSTR = 0x00221800;      // ADD $3, $1, $2
+    static constexpr uint32_t SUB_INSTR = 0x08221800;      // SUB $3, $1, $2
+    static constexpr uint32_t MUL_INSTR = 0x10221800;      // MUL $3, $1, $2
+    static constexpr uint32_t AND_INSTR = 0x20221800;      // AND $3, $1, $2
+    static constexpr uint32_t BEQ_INSTR = 0x3C280032;      // BEQ $1, $8, 50
+    static constexpr uint32_t BZ_INSTR = 0x38280032;       // BZ $1, 50
+    static constexpr uint32_t JR_INSTR = 0x40280000;       // JR $5
+    static constexpr uint32_t LDW_INSTR = 0x30480064;      // LDW $8, 100($2)
 
-    // Helper to properly initialize a pipeline register with an instruction
-    void setupExecuteStage(uint32_t instruction_word, int32_t reg_a_value, int32_t reg_b_value,
-                           std::optional<uint8_t> wb_reg) {
-        // Create a new instruction object
-        Instruction* instr = new Instruction(instruction_word);
+    void SetUp() override { 
+        sim = std::make_unique<FunctionalSimulator>(&rf, &stats, &mem, true);
+        
+        // Initialize register file with test values
+        rf.write(1, 100);
+        rf.write(2, 200);
+        rf.write(3, 300);
+        rf.write(5, 2048);  // For JR test
+        rf.write(8, 800);
+    }
 
-        // Create pipeline data
-        PipelineData<uint32_t> data;
-        data.instr = instr;
-        data.reg_a = reg_a_value;
-        data.reg_b = reg_b_value;
-        data.wb_reg = wb_reg;
-        data.branch_taken = std::nullopt;
-        data.result = 0;
+    // Helper to set up execute stage with an instruction and data
+    void setupExecuteStage(uint32_t instruction_word, uint32_t rs_value, uint32_t rt_value, 
+                          std::optional<uint8_t> dest_reg = std::nullopt, uint32_t pc_value = 1000) {
+        // Create instruction
+        auto instr = std::make_unique<Instruction>(instruction_word);
 
-        // Initialize the pipeline register
-        sim->idex_reg.setNext(data);
+        // Create pipeline stage data for execute stage
+        auto execute_data = std::make_unique<PipelineStageData>();
+        execute_data->instruction = std::move(instr);
+        execute_data->rs_value = rs_value;
+        execute_data->rt_value = rt_value;
+        execute_data->dest_reg = dest_reg;
+        execute_data->pc = pc_value;
 
-        // Clock the pipeline
-        sim->clockPipelineRegisters();
+        // Place the instruction in the execute stage
+        sim->getPipeline()[FunctionalSimulator::PipelineStage::EXECUTE] = std::move(execute_data);
+    }
 
-        // Verify the register is now valid
-        ASSERT_TRUE(sim->idex_reg.isValid()) << "ID/EX register wasn't properly initialized";
+    // Helper to get execute stage data
+    const PipelineStageData* getExecuteStageData() {
+        return sim->getPipelineStage(FunctionalSimulator::PipelineStage::EXECUTE);
+    }
+
+    // Helper to get memory stage data (after execute processes)
+    const PipelineStageData* getMemoryStageData() {
+        return sim->getPipelineStage(FunctionalSimulator::PipelineStage::MEMORY);
     }
 };
 
 // Test ADD instruction execution
 TEST_F(ExecuteStageTest, ExecuteADD) {
-    // Using the correct opcode for ADD (0x00)
-    uint32_t add_instr = 0x00221800;  // ADD $3, $1, $2
+    // Set up execute stage with ADD instruction and test values
+    setupExecuteStage(ADD_INSTR, 10, 20, 3);  // rs=10, rt=20, dest=3
 
-    // Set up the ID/EX register with test values
-    setupExecuteStage(add_instr, 10, 20, 3);  // reg_a=10, reg_b=20, wb_reg=3
+    // Verify instruction is in execute stage
+    const PipelineStageData* execute_data = getExecuteStageData();
+    ASSERT_NE(execute_data, nullptr);
+    ASSERT_NE(execute_data->instruction, nullptr);
 
     // Execute the instruction
-    sim->execute(sim->idex_reg.current().instr);
+    sim->execute();
 
-    // Clock the pipeline to move result to exmem_reg.current()
-    sim->clockPipelineRegisters();
-
-    // Verify the result is correct (10 + 20 = 30)
-    EXPECT_EQ(sim->exmem_reg.current().result, 30);
-    EXPECT_TRUE(sim->exmem_reg.current().wb_reg.has_value());
-    EXPECT_EQ(sim->exmem_reg.current().wb_reg.value(), 3);
+    // Verify the ALU result is correct (10 + 20 = 30)
+    EXPECT_EQ(execute_data->alu_result, 30);
+    EXPECT_TRUE(execute_data->dest_reg.has_value());
+    EXPECT_EQ(execute_data->dest_reg.value(), 3);
 }
 
 // Test SUB instruction execution
 TEST_F(ExecuteStageTest, ExecuteSUB) {
-    // Using the correct opcode for SUB (0x02)
-    uint32_t sub_instr = 0x08221800;  // SUB $3, $1, $2
-
-    // Set up the ID/EX register with test values
-    setupExecuteStage(sub_instr, 30, 12, 3);  // reg_a=30, reg_b=12, wb_reg=3
+    // Set up execute stage with SUB instruction and test values
+    setupExecuteStage(SUB_INSTR, 30, 12, 3);  // rs=30, rt=12, dest=3
 
     // Execute the instruction
-    sim->execute(sim->idex_reg.current().instr);
+    sim->execute();
 
-    // Clock the pipeline
-    sim->clockPipelineRegisters();
-
-    // Verify the result is correct (30 - 12 = 18)
-    EXPECT_EQ(sim->exmem_reg.current().result, 18);
-    EXPECT_TRUE(sim->exmem_reg.current().wb_reg.has_value());
-    EXPECT_EQ(sim->exmem_reg.current().wb_reg.value(), 3);
+    // Verify the ALU result is correct (30 - 12 = 18)
+    const PipelineStageData* execute_data = getExecuteStageData();
+    EXPECT_EQ(execute_data->alu_result, 18);
+    EXPECT_TRUE(execute_data->dest_reg.has_value());
+    EXPECT_EQ(execute_data->dest_reg.value(), 3);
 }
 
 // Test MUL instruction execution
 TEST_F(ExecuteStageTest, ExecuteMUL) {
-    // Using the correct opcode for MUL (0x04)
-    uint32_t mul_instr = 0x10221800;  // MUL $3, $1, $2
-
-    // Set up the ID/EX register with test values
-    setupExecuteStage(mul_instr, 5, 7, 3);  // reg_a=5, reg_b=7, wb_reg=3
+    // Set up execute stage with MUL instruction and test values
+    setupExecuteStage(MUL_INSTR, 5, 7, 3);  // rs=5, rt=7, dest=3
 
     // Execute the instruction
-    sim->execute(sim->idex_reg.current().instr);
+    sim->execute();
 
-    // Clock the pipeline
-    sim->clockPipelineRegisters();
+    // Verify the ALU result is correct (5 * 7 = 35)
+    const PipelineStageData* execute_data = getExecuteStageData();
+    EXPECT_EQ(execute_data->alu_result, 35);
+    EXPECT_TRUE(execute_data->dest_reg.has_value());
+    EXPECT_EQ(execute_data->dest_reg.value(), 3);
+}
 
-    // Verify the result is correct (5 * 7 = 35)
-    EXPECT_EQ(sim->exmem_reg.current().result, 35);
-    EXPECT_TRUE(sim->exmem_reg.current().wb_reg.has_value());
-    EXPECT_EQ(sim->exmem_reg.current().wb_reg.value(), 3);
+// Test AND instruction execution
+TEST_F(ExecuteStageTest, ExecuteAND) {
+    // Set up execute stage with AND instruction and test values
+    setupExecuteStage(AND_INSTR, 0b1010, 0b1100, 3);  // rs=10, rt=12, dest=3
+
+    // Execute the instruction
+    sim->execute();
+
+    // Verify the ALU result is correct (0b1010 & 0b1100 = 0b1000 = 8)
+    const PipelineStageData* execute_data = getExecuteStageData();
+    EXPECT_EQ(execute_data->alu_result, 8);
+    EXPECT_TRUE(execute_data->dest_reg.has_value());
+    EXPECT_EQ(execute_data->dest_reg.value(), 3);
 }
 
 // Test BEQ instruction execution with branch taken
 TEST_F(ExecuteStageTest, ExecuteBEQTaken) {
-    // Using the correct opcode for BEQ (0x0F)
-    uint32_t beq_instr = 0x3C280032;  // BEQ $1, $8, 50 (branch if $1 == $8, offset 50)
-
-    // Set up simulator's PC
-    sim->setPC(1000);
-
-    // Set up the ID/EX register with equal values to trigger branch
-    setupExecuteStage(beq_instr, 25, 25, std::nullopt);  // reg_a=25, reg_b=25, no wb_reg
+    // Set up execute stage with BEQ instruction and equal values
+    setupExecuteStage(BEQ_INSTR, 25, 25, std::nullopt, 1000);  // rs=25, rt=25, no dest, pc=1000
 
     // Execute the instruction
-    sim->execute(sim->idex_reg.current().instr);
+    sim->execute();
 
-    // Clock the pipeline
-    sim->clockPipelineRegisters();
-
-    // Verify branch was taken (50*4 + 1000 = 1200)
-    EXPECT_EQ(sim->exmem_reg.current().result, 1200);
-    EXPECT_TRUE(sim->exmem_reg.current().branch_taken.has_value());
-    EXPECT_TRUE(sim->exmem_reg.current().branch_taken.value());
-    EXPECT_FALSE(sim->exmem_reg.current().wb_reg.has_value());
+    // Verify branch was taken and target address calculated correctly
+    const PipelineStageData* execute_data = getExecuteStageData();
+    EXPECT_EQ(execute_data->alu_result, 1200);  // 1000 + (50*4) = 1200
+    EXPECT_TRUE(sim->isBranchTaken());          // Use getter method
+    EXPECT_FALSE(execute_data->dest_reg.has_value());  // No writeback for branches
 }
 
 // Test BEQ instruction execution with branch not taken
 TEST_F(ExecuteStageTest, ExecuteBEQNotTaken) {
-    // Using the correct opcode for BEQ (0x0F)
-    uint32_t beq_instr = 0x3C280032;  // BEQ $1, $8, 50 (branch if $1 == $8, offset 50)
-
-    // Set up simulator's PC
-    sim->setPC(1000);
-
-    // Set up the ID/EX register with unequal values to avoid branch
-    setupExecuteStage(beq_instr, 25, 30, std::nullopt);  // reg_a=25, reg_b=30, no wb_reg
+    // Set up execute stage with BEQ instruction and unequal values
+    setupExecuteStage(BEQ_INSTR, 25, 30, std::nullopt, 1000);  // rs=25, rt=30, no dest, pc=1000
 
     // Execute the instruction
-    sim->execute(sim->idex_reg.current().instr);
-
-    // Clock the pipeline
-    sim->clockPipelineRegisters();
+    sim->execute();
 
     // Verify branch was not taken
-    EXPECT_TRUE(sim->exmem_reg.current().branch_taken.has_value());
-    EXPECT_FALSE(sim->exmem_reg.current().branch_taken.value());
-    EXPECT_FALSE(sim->exmem_reg.current().wb_reg.has_value());
-}
-
-// Test JR instruction execution
-TEST_F(ExecuteStageTest, ExecuteJR) {
-    // Using the correct opcode for JR (0x10)
-    uint32_t jr_instr = 0x40280000;  // JR $5 (jump to address in $5)
-
-    // Set up the ID/EX register with jump target address
-    setupExecuteStage(jr_instr, 2048, 0, std::nullopt);  // reg_a=2048 (jump target), no wb_reg
-
-    // Execute the instruction
-    sim->execute(sim->idex_reg.current().instr);
-
-    // Clock the pipeline
-    sim->clockPipelineRegisters();
-
-    // Verify jump address is correct (should be value in reg_a)
-    EXPECT_EQ(sim->exmem_reg.current().result, 2048);
-    EXPECT_TRUE(sim->exmem_reg.current().branch_taken.has_value());
-    EXPECT_TRUE(sim->exmem_reg.current().branch_taken.value());
-    EXPECT_FALSE(sim->exmem_reg.current().wb_reg.has_value());
-}
-
-// Test logical operation: AND instruction
-TEST_F(ExecuteStageTest, ExecuteAND) {
-    // Using the correct opcode for AND (0x08)
-    uint32_t and_instr = 0x20221800;  // AND $3, $1, $2
-
-    // Set up the ID/EX register with test values
-    setupExecuteStage(and_instr, 0b1010, 0b1100, 3);  // reg_a=10, reg_b=12, wb_reg=3
-
-    // Execute the instruction
-    sim->execute(sim->idex_reg.current().instr);
-
-    // Clock the pipeline
-    sim->clockPipelineRegisters();
-
-    // Verify the result is correct (0b1010 & 0b1100 = 0b1000 = 8)
-    EXPECT_EQ(sim->exmem_reg.current().result, 8);
-    EXPECT_TRUE(sim->exmem_reg.current().wb_reg.has_value());
-    EXPECT_EQ(sim->exmem_reg.current().wb_reg.value(), 3);
-}
-
-// Test memory operation: LDW instruction (Load Word)
-TEST_F(ExecuteStageTest, ExecuteLDW) {
-    // Using the correct opcode for LDW (0x0C)
-    uint32_t ldw_instr = 0x30480064;  // LDW $8, 100($2) (load word from address $2+100 into $8)
-
-    // Set up the ID/EX register with test values
-    setupExecuteStage(ldw_instr, 1000, 100,
-                      8);  // reg_a=1000 (base), reg_b=100 (offset), wb_reg=8 (dest)
-
-    // Execute the instruction
-    sim->execute(sim->idex_reg.current().instr);
-
-    // Clock the pipeline
-    sim->clockPipelineRegisters();
-
-    // Verify the effective address is correct (1000 + 100 = 1100)
-    EXPECT_EQ(sim->exmem_reg.current().result, 1100);
-    EXPECT_TRUE(sim->exmem_reg.current().wb_reg.has_value());
-    EXPECT_EQ(sim->exmem_reg.current().wb_reg.value(), 8);
+    const PipelineStageData* execute_data = getExecuteStageData();
+    EXPECT_FALSE(sim->isBranchTaken());         // Use getter method
+    EXPECT_FALSE(execute_data->dest_reg.has_value());
 }
 
 // Test BZ instruction with branch taken
 TEST_F(ExecuteStageTest, ExecuteBZTaken) {
-    // Using the correct opcode for BZ (0x0E)
-    uint32_t bz_instr = 0x38280032;  // BZ $1, 50 (branch if $1 == 0, offset 50)
-
-    // Set up simulator's PC
-    sim->setPC(1000);
-
-    // Set up the ID/EX register with zero to trigger branch
-    setupExecuteStage(bz_instr, 0, 50, std::nullopt);  // reg_a=0, reg_b=50 (offset), no wb_reg
+    // Set up execute stage with BZ instruction and zero value
+    setupExecuteStage(BZ_INSTR, 0, 50, std::nullopt, 1000);  // rs=0, rt=50 (offset), no dest, pc=1000
 
     // Execute the instruction
-    sim->execute(sim->idex_reg.current().instr);
-
-    // Clock the pipeline
-    sim->clockPipelineRegisters();
+    sim->execute();
 
     // Verify branch was taken (50*4 + 1000 = 1200)
-    EXPECT_EQ(sim->exmem_reg.current().result, 1200);
-    EXPECT_TRUE(sim->exmem_reg.current().branch_taken.has_value());
-    EXPECT_TRUE(sim->exmem_reg.current().branch_taken.value());
-    EXPECT_FALSE(sim->exmem_reg.current().wb_reg.has_value());
+    const PipelineStageData* execute_data = getExecuteStageData();
+    EXPECT_EQ(execute_data->alu_result, 1200);
+    EXPECT_TRUE(sim->isBranchTaken());          // Use getter method
+    EXPECT_FALSE(execute_data->dest_reg.has_value());
+}
+
+// Test BZ instruction with branch not taken
+TEST_F(ExecuteStageTest, ExecuteBZNotTaken) {
+    // Set up execute stage with BZ instruction and non-zero value
+    setupExecuteStage(BZ_INSTR, 5, 50, std::nullopt, 1000);  // rs=5 (non-zero), rt=50, no dest, pc=1000
+
+    // Execute the instruction
+    sim->execute();
+
+    // Verify branch was not taken
+    const PipelineStageData* execute_data = getExecuteStageData();
+    EXPECT_FALSE(sim->isBranchTaken());         // Use getter method
+    EXPECT_FALSE(execute_data->dest_reg.has_value());
+}
+
+// Test JR instruction execution
+TEST_F(ExecuteStageTest, ExecuteJR) {
+    // Set up execute stage with JR instruction
+    setupExecuteStage(JR_INSTR, 2048, 0, std::nullopt);  // rs=2048 (jump target), rt=0, no dest
+
+    // Execute the instruction
+    sim->execute();
+
+    // Verify jump address is correct (should be value in rs)
+    const PipelineStageData* execute_data = getExecuteStageData();
+    EXPECT_EQ(execute_data->alu_result, 2048);
+    EXPECT_TRUE(sim->isBranchTaken());          // Use getter method
+    EXPECT_FALSE(execute_data->dest_reg.has_value());
+}
+
+// Test LDW instruction execution (Load Word)
+TEST_F(ExecuteStageTest, ExecuteLDW) {
+    // Set up execute stage with LDW instruction
+    setupExecuteStage(LDW_INSTR, 1000, 100, 8);  // rs=1000 (base), rt=100 (offset), dest=8
+
+    // Execute the instruction
+    sim->execute();
+
+    // Verify the effective address is calculated correctly (1000 + 100 = 1100)
+    const PipelineStageData* execute_data = getExecuteStageData();
+    EXPECT_EQ(execute_data->alu_result, 1100);
+    EXPECT_TRUE(execute_data->dest_reg.has_value());
+    EXPECT_EQ(execute_data->dest_reg.value(), 8);
 }

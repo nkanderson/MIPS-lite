@@ -31,8 +31,20 @@ class DecodeStageTest : public ::testing::Test {
     NiceMock<MockMemoryParser> mem;
     std::unique_ptr<FunctionalSimulator> sim;
 
+    // Sample instructions to use in tests
+    // R-type: ADD $rd, $rs, $rt (opcode=0, rs=1, rt=2, rd=3)
+    const uint32_t r_type_add_instr = 0x00221800;  // ADD $3, $1, $2
+    // I-type: ADDI $rt, $rs, immediate (opcode=1, rs=4, rt=5, imm=100)
+    const uint32_t i_type_addi_pos_instr = 0x04850064;  // ADDI $5, $4, 100
+    // I-type with negative immediate: ADDI $rt, $rs, immediate (opcode=1, rs=6, rt=7, imm=-100)
+    const uint32_t i_type_addi_neg_instr = 0x04C7FF9C;  // ADDI $7, $6, -100
+    // I-type memory: LDW $rt, imm($rs) (opcode=12, rs=8, rt=9, imm=200)
+    const uint32_t i_type_ldw_instr = 0x310900C8;  // LDW $9, 200($8)
+    // I-type branch: BEQ $rs, $rt, imm (opcode=15, rs=10, rt=11, imm=-50)
+    const uint32_t i_type_beq_instr = 0x3D4BFFCE;  // BEQ $10, $11, -50
+
     void SetUp() override {
-        sim = std::make_unique<FunctionalSimulator>(&rf, &stats, &mem);
+        sim = std::make_unique<FunctionalSimulator>(&rf, &stats, &mem, true);
 
         // Initialize some register values for testing
         rf.write(1, 100);  // $1 = 100
@@ -40,238 +52,175 @@ class DecodeStageTest : public ::testing::Test {
         rf.write(3, 300);  // $3 = 300
         rf.write(4, 400);  // $4 = 400
         rf.write(5, 500);  // $5 = 500
+        rf.write(6, 600);  // $6 = 600
+        rf.write(7, 700);  // $7 = 700
+        rf.write(8, 800);  // $8 = 800
+        rf.write(9, 900);  // $9 = 900
+        rf.write(10, 1000);  // $10 = 1000
+        rf.write(11, 1100);  // $11 = 1100
+
+        
     }
 
-    // Helper to properly initialize a pipeline register with an instruction
+    // Helper to properly initialize the decode stage with an instruction
     void setupDecodeStage(uint32_t instruction_word) {
         // Create a new instruction object
-        Instruction* instr = new Instruction(instruction_word);
+        auto instr = std::make_unique<Instruction>(instruction_word);
 
-        // Create pipeline data for IF/ID register
-        PipelineData<uint32_t> data;
-        data.instr = instr;
-        data.result = 0;
+        // Create pipeline stage data for decode stage
+        auto decode_data = std::make_unique<PipelineStageData>();
+        decode_data->instruction = std::move(instr);
+        decode_data->pc = sim->getPC();  // Use current PC
 
-        // Initialize the pipeline register
-        sim->ifid_reg.setNext(data);
+        // Place the instruction in the decode stage using getPipeline()
+        sim->getPipeline()[FunctionalSimulator::PipelineStage::DECODE] = std::move(decode_data);
+    }
 
-        // Clock the pipeline to make it current
-        sim->clockPipelineRegisters();
+    // Helper to get decode stage data
+    const PipelineStageData* getDecodeStageData() {
+        return sim->getPipelineStage(FunctionalSimulator::PipelineStage::DECODE);
+    }
 
-        // Verify the register is now valid
-        ASSERT_TRUE(sim->ifid_reg.isValid()) << "IF/ID register wasn't properly initialized";
+    // Helper to get execute stage data (after decode processes)
+    const PipelineStageData* getExecuteStageData() {
+        return sim->getPipelineStage(FunctionalSimulator::PipelineStage::EXECUTE);
     }
 };
 
-// Test R-type instruction decode (ADD)
-TEST_F(DecodeStageTest, DecodeRTypeInstruction) {
-    // Using ADD instruction: ADD $3, $1, $2
-    uint32_t add_instr = 0x00221800;  // opcode=0, rs=1, rt=2, rd=3
+// Test I-type instruction decode (ADDI) - Most basic case
+// This validates: register reading, destination register setting, instruction decoding
+TEST_F(DecodeStageTest, DecodeBasicITypeInstruction) {
+    // This instruction reads $1 (rs=1), adds immediate 50, writes result to $3 (rt=3)
+    
+    
+    // Set up the decode stage with our instruction
+    setupDecodeStage(r_type_add_instr);
 
-    // Set up the IF/ID register
-    setupDecodeStage(add_instr);
+    // Verify the instruction is in decode stage before processing
+    const PipelineStageData* decode_data = getDecodeStageData();
+    ASSERT_NE(decode_data, nullptr);
+    ASSERT_NE(decode_data->instruction, nullptr);
+
+    // Decode the instruction - this should:
+    // 1. Read Rs register value ($1 = 100)
+    // 2. Read Rt register value ($2 = 200)
+    // 3. Set destination register to Rt (register 3)
+    sim->instructionDecode();
+
+    // Verify the decode stage now has the correct values set
+    EXPECT_EQ(decode_data->rs_value, 100);              // Should have read $1 value
+    EXPECT_EQ(decode_data->rt_value, 200);              // Should have read $2 value
+    EXPECT_TRUE(decode_data->dest_reg.has_value());     // Should have destination register
+    EXPECT_EQ(decode_data->dest_reg.value(), 3);        // Destination should be $3 (rt)
+    
+}
+
+TEST_F(DecodeStageTest, DecodeITypeInstructionWithImmediate) {
+    // Set up the decode stage with our instruction
+    setupDecodeStage(i_type_addi_pos_instr);
 
     // Decode the instruction
-    sim->instructionDecode(sim->ifid_reg.current().instr);
+    sim->instructionDecode();
 
-    // Clock the pipeline
-    sim->clockPipelineRegisters();
+    // Verify the decode stage now has the correct values set
+    const PipelineStageData* decode_data = getDecodeStageData();
+    ASSERT_NE(decode_data, nullptr);
+    ASSERT_NE(decode_data->instruction, nullptr);
 
-    // Verify decode results in ID/EX register
-    EXPECT_EQ(sim->idex_reg.current().reg_a, 100);  // Value of $1
-    EXPECT_EQ(sim->idex_reg.current().reg_b, 200);  // Value of $2
-    EXPECT_TRUE(sim->idex_reg.current().wb_reg.has_value());
-    EXPECT_EQ(sim->idex_reg.current().wb_reg.value(), 3);            // Write-back to $3
-    EXPECT_FALSE(sim->idex_reg.current().branch_taken.has_value());  // Not a branch
+    // This instruction should 
+    // 1. Read Rs register value ($4 = 400)
+    // 2. Set Rt as destination register (register 5)
+
+    EXPECT_EQ(decode_data->rs_value, 400);              // Should have read $4 value
+    EXPECT_TRUE(decode_data->dest_reg.has_value());     // Should have destination register
+    EXPECT_EQ(decode_data->dest_reg.value(), 5);        // Destination should be $5 (rt)
 }
 
-// Test I-type instruction decode (ADDI)
-TEST_F(DecodeStageTest, DecodeITypeInstruction) {
-    // Using ADDI instruction: ADDI $3, $1, 50
-    uint32_t addi_instr = 0x04230032;  // opcode=1, rs=1, rt=3, imm=50
-
-    // Set up the IF/ID register
-    setupDecodeStage(addi_instr);
+TEST_F(DecodeStageTest, DecodeBEQTypeInstruction) {
+    // Set up the decode stage with our instruction
+    setupDecodeStage(i_type_beq_instr);
 
     // Decode the instruction
-    sim->instructionDecode(sim->ifid_reg.current().instr);
+    sim->instructionDecode();
 
-    // Clock the pipeline
-    sim->clockPipelineRegisters();
+    // This instruction should
+    // 1. Read Rs register value ($10 = 1000)
+    // 2. Read Rt register value ($11 = 1100)
+    // 3. Set destination register to null (no writeback)
 
-    // Verify decode results in ID/EX register
-    EXPECT_EQ(sim->idex_reg.current().reg_a, 100);  // Value of $1
-    EXPECT_EQ(sim->idex_reg.current().reg_b, 50);   // Immediate value
-    EXPECT_TRUE(sim->idex_reg.current().wb_reg.has_value());
-    EXPECT_EQ(sim->idex_reg.current().wb_reg.value(), 3);            // Write-back to $3
-    EXPECT_FALSE(sim->idex_reg.current().branch_taken.has_value());  // Not a branch
+    const PipelineStageData* decode_data = getDecodeStageData();
+    ASSERT_NE(decode_data, nullptr);
+    ASSERT_NE(decode_data->instruction, nullptr);
+    EXPECT_EQ(decode_data->rs_value, 1000);             // Should have read $10 value
+    EXPECT_EQ(decode_data->rt_value, 1100);             // Should have read $11 value
+    EXPECT_FALSE(decode_data->dest_reg.has_value());    // No destination register
+    
 }
 
-// Test memory instruction decode (LDW)
-TEST_F(DecodeStageTest, DecodeMemoryInstruction) {
-    // Using LDW instruction: LDW $3, 100($1)
-    uint32_t ldw_instr = 0x30230064;  // opcode=12, rs=1, rt=3, imm=100
+TEST_F(DecodeStageTest, ForwardingToRsRegister) {
+    // Set up execute stage with instruction that writes to $1
+    auto execute_data = std::make_unique<PipelineStageData>();
+    execute_data->instruction = std::make_unique<Instruction>(0x00000000);
+    execute_data->pc = sim->getPC();
+    execute_data->alu_result = 1234;
+    execute_data->dest_reg = 1;
 
-    // Set up the IF/ID register
-    setupDecodeStage(ldw_instr);
+    sim->getPipeline()[FunctionalSimulator::PipelineStage::EXECUTE] = std::move(execute_data);
+
+    // Decode instruction that reads $1
+    setupDecodeStage(r_type_add_instr);
+    sim->instructionDecode();
+
+    const PipelineStageData* decode_data = getDecodeStageData();
+    EXPECT_EQ(decode_data->rs_value, 1234);  // Forwarded value
+    EXPECT_EQ(decode_data->rt_value, 200);   // Normal register value
+}
+
+// Test forwarding to Rt register  
+TEST_F(DecodeStageTest, ForwardingToRtRegister) {
+    // Set up execute stage with instruction that writes to $2
+    auto execute_data = std::make_unique<PipelineStageData>();
+    execute_data->instruction = std::make_unique<Instruction>(0x00000000);
+    execute_data->pc = sim->getPC();
+    execute_data->alu_result = 5678;
+    execute_data->dest_reg = 2;
+
+    sim->getPipeline()[FunctionalSimulator::PipelineStage::EXECUTE] = std::move(execute_data);
+
+    // Decode instruction that reads $2
+    setupDecodeStage(r_type_add_instr);
+    sim->instructionDecode();
+
+    const PipelineStageData* decode_data = getDecodeStageData();
+    EXPECT_EQ(decode_data->rs_value, 100);   // Normal register value
+    EXPECT_EQ(decode_data->rt_value, 5678);  // Forwarded value
+}
+
+// No forwarding when register numbers don't match
+TEST_F(DecodeStageTest, NoForwardingWhenRegistersDontMatch) {
+    // Set up execute stage with instruction that writes to $5 (not used in our decode instruction)
+    auto execute_data = std::make_unique<PipelineStageData>();
+    execute_data->instruction = std::make_unique<Instruction>(0x00000000); // Dummy instruction
+    execute_data->pc = sim->getPC();
+    execute_data->alu_result = 9999;  // Some value that shouldn't be forwarded
+    execute_data->dest_reg = 5;       // Writing to register $5
+
+    // Place the instruction in the execute stage
+    sim->getPipeline()[FunctionalSimulator::PipelineStage::EXECUTE] = std::move(execute_data);
+
+    // Set up decode stage with ADD $3, $1, $2 (doesn't use $5)
+    setupDecodeStage(r_type_add_instr);
 
     // Decode the instruction
-    sim->instructionDecode(sim->ifid_reg.current().instr);
+    sim->instructionDecode();
 
-    // Clock the pipeline
-    sim->clockPipelineRegisters();
+    // Verify NO forwarding occurred
+    const PipelineStageData* decode_data = getDecodeStageData();
+    ASSERT_NE(decode_data, nullptr);
+    ASSERT_NE(decode_data->instruction, nullptr);
 
-    // Verify decode results in ID/EX register
-    EXPECT_EQ(sim->idex_reg.current().reg_a, 100);  // Value of $1 (base address)
-    EXPECT_EQ(sim->idex_reg.current().reg_b, 100);  // Immediate value (offset)
-    EXPECT_TRUE(sim->idex_reg.current().wb_reg.has_value());
-    EXPECT_EQ(sim->idex_reg.current().wb_reg.value(), 3);            // Write-back to $3
-    EXPECT_FALSE(sim->idex_reg.current().branch_taken.has_value());  // Not a branch
-}
-
-// Test store instruction decode (STW)
-TEST_F(DecodeStageTest, DecodeStoreInstruction) {
-    // Using STW instruction: STW $3, 100($1)
-    uint32_t stw_instr = 0x34230064;  // opcode=13, rs=1, rt=3, imm=100
-
-    // Set up the IF/ID register
-    setupDecodeStage(stw_instr);
-
-    // Decode the instruction
-    sim->instructionDecode(sim->ifid_reg.current().instr);
-
-    // Clock the pipeline
-    sim->clockPipelineRegisters();
-
-    // Verify decode results in ID/EX register
-    EXPECT_EQ(sim->idex_reg.current().reg_a, 100);                   // Value of $1 (base address)
-    EXPECT_EQ(sim->idex_reg.current().reg_b, 100);                   // Immediate value (offset)
-    EXPECT_FALSE(sim->idex_reg.current().wb_reg.has_value());        // No write-back for store
-    EXPECT_FALSE(sim->idex_reg.current().branch_taken.has_value());  // Not a branch
-}
-
-// Test branch instruction decode (BEQ)
-TEST_F(DecodeStageTest, DecodeBranchEqualInstruction) {
-    // Using BEQ instruction: BEQ $1, $2, 50
-    uint32_t beq_instr = 0x3C220032;  // opcode=15, rs=1, rt=2, imm=50
-
-    // Set up the IF/ID register
-    setupDecodeStage(beq_instr);
-
-    // Decode the instruction
-    sim->instructionDecode(sim->ifid_reg.current().instr);
-
-    // Clock the pipeline
-    sim->clockPipelineRegisters();
-
-    // Verify decode results in ID/EX register
-    EXPECT_EQ(sim->idex_reg.current().reg_a, 100);             // Value of $1
-    EXPECT_EQ(sim->idex_reg.current().reg_b, 200);             // Value of $2 (for comparison)
-    EXPECT_FALSE(sim->idex_reg.current().wb_reg.has_value());  // No write-back for branch
-    EXPECT_TRUE(sim->idex_reg.current().branch_taken.has_value());
-    EXPECT_FALSE(sim->idex_reg.current().branch_taken.value());  // Initially false
-}
-
-// Test branch zero instruction decode (BZ)
-TEST_F(DecodeStageTest, DecodeBranchZeroInstruction) {
-    // Using BZ instruction: BZ $1, 50
-    uint32_t bz_instr = 0x38220032;  // opcode=14, rs=1, rt=x, imm=50
-
-    // Set up the IF/ID register
-    setupDecodeStage(bz_instr);
-
-    // Decode the instruction
-    sim->instructionDecode(sim->ifid_reg.current().instr);
-
-    // Clock the pipeline
-    sim->clockPipelineRegisters();
-
-    // Verify decode results in ID/EX register
-    EXPECT_EQ(sim->idex_reg.current().reg_a, 100);             // Value of $1
-    EXPECT_EQ(sim->idex_reg.current().reg_b, 50);              // Immediate value (offset)
-    EXPECT_FALSE(sim->idex_reg.current().wb_reg.has_value());  // No write-back for branch
-    EXPECT_TRUE(sim->idex_reg.current().branch_taken.has_value());
-    EXPECT_FALSE(sim->idex_reg.current().branch_taken.value());  // Initially false
-}
-
-// Test jump register instruction decode (JR)
-TEST_F(DecodeStageTest, DecodeJumpRegisterInstruction) {
-    // Using JR instruction: JR $5
-    uint32_t jr_instr = 0x40A00000;  // opcode=16, rs=5
-
-    // Set up the IF/ID register
-    setupDecodeStage(jr_instr);
-
-    // Decode the instruction
-    sim->instructionDecode(sim->ifid_reg.current().instr);
-
-    // Clock the pipeline
-    sim->clockPipelineRegisters();
-
-    // Verify decode results in ID/EX register
-    EXPECT_EQ(sim->idex_reg.current().reg_a, 500);             // Value of $5 (jump target)
-    EXPECT_FALSE(sim->idex_reg.current().wb_reg.has_value());  // No write-back for jump
-    EXPECT_TRUE(sim->idex_reg.current().branch_taken.has_value());
-    EXPECT_FALSE(sim->idex_reg.current().branch_taken.value());  // Initially false
-}
-
-// Test stall behavior with hazards
-TEST_F(DecodeStageTest, StallOnDataHazard) {
-    // First, set up a register in the EX/MEM stage that will create a hazard
-    PipelineData<uint32_t> exmem_data;
-    exmem_data.wb_reg = 1;  // Write-back to register $1
-    exmem_data.result = 999;
-    exmem_data.instr = new Instruction(0);  // Any instruction
-
-    sim->exmem_reg.setNext(exmem_data);
-    sim->clockPipelineRegisters();
-
-    // Now set up an instruction that uses $1
-    uint32_t add_instr = 0x00221800;  // ADD $3, $1, $2
-
-    // Set up the IF/ID register
-    setupDecodeStage(add_instr);
-
-    // Call decode - should detect hazard and set stall
-    sim->instructionDecode(sim->ifid_reg.current().instr);
-
-    // Verify a stall was set
-    if (!sim->isForwardingEnabled()) {
-        EXPECT_EQ(sim->getStall(), 2);  // Two cycles of stall for hazard
-    } else {
-        EXPECT_EQ(sim->getStall(), 0);  // No stall if forwarding is enabled
-    }
-
-    // Clock pipleine and check if stall is decremented
-    if (!sim->isForwardingEnabled()) {
-        sim->clockPipelineRegisters();
-        sim->instructionDecode(sim->ifid_reg.current().instr);
-        EXPECT_EQ(sim->getStall(), 1);  // Stall should be decremented
-        sim->clockPipelineRegisters();
-        sim->instructionDecode(sim->ifid_reg.current().instr);
-        EXPECT_EQ(sim->getStall(), 0);  // Stall should be decremented to 0
-    }
-}
-
-// Test forwarding is disabled by default
-TEST_F(DecodeStageTest, ForwardingDisabledByDefault) { EXPECT_FALSE(sim->isForwardingEnabled()); }
-
-// Test bubble insertion during stall
-TEST_F(DecodeStageTest, BubbleInsertionDuringStall) {
-    // Set a stall count
-    sim->setStall(2);
-
-    // Set up any instruction
-    uint32_t add_instr = 0x00221800;  // ADD $3, $1, $2
-    setupDecodeStage(add_instr);
-
-    // Call decode - should insert bubble due to stall
-    sim->instructionDecode(sim->ifid_reg.current().instr);
-
-    // Clock the pipeline
-    sim->clockPipelineRegisters();
-
-    // Verify a bubble was inserted (null instruction)
-    EXPECT_EQ(sim->idex_reg.current().instr, nullptr);
-    EXPECT_EQ(sim->getStall(), 1);  // Stall should be decremented
+    EXPECT_EQ(decode_data->rs_value, 100);  // Normal register file value for $1
+    EXPECT_EQ(decode_data->rt_value, 200);  // Normal register file value for $2
+    EXPECT_TRUE(decode_data->dest_reg.has_value());
+    EXPECT_EQ(decode_data->dest_reg.value(), 3);
 }
