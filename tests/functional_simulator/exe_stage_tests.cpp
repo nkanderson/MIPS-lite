@@ -187,7 +187,7 @@ TEST_F(ExecuteStageTest, ExecuteBEQNotTaken) {
 // Test BZ instruction with branch taken
 TEST_F(ExecuteStageTest, ExecuteBZTaken) {
     // Set up execute stage with BZ instruction and zero value
-    setupExecuteStage(BZ_INSTR, 0, 50, std::nullopt, 1000);  // rs=0, rt=50 (offset), no dest, pc=1000
+    setupExecuteStage(BZ_INSTR, 0, 0, std::nullopt, 1000);  // rs=0, immediate=50 (offset), no dest, no rt, pc=1000
 
     // Execute the instruction
     sim->execute();
@@ -202,7 +202,7 @@ TEST_F(ExecuteStageTest, ExecuteBZTaken) {
 // Test BZ instruction with branch not taken
 TEST_F(ExecuteStageTest, ExecuteBZNotTaken) {
     // Set up execute stage with BZ instruction and non-zero value
-    setupExecuteStage(BZ_INSTR, 5, 50, std::nullopt, 1000);  // rs=5 (non-zero), rt=50, no dest, pc=1000
+    setupExecuteStage(BZ_INSTR, 5, 0, std::nullopt, 1000);  // rs=5 (non-zero), immediate=50, no dest, no rt pc=1000
 
     // Execute the instruction
     sim->execute();
@@ -231,7 +231,8 @@ TEST_F(ExecuteStageTest, ExecuteJR) {
 // Test LDW instruction execution (Load Word)
 TEST_F(ExecuteStageTest, ExecuteLDW) {
     // Set up execute stage with LDW instruction
-    setupExecuteStage(LDW_INSTR, 1000, 100, 8);  // rs=1000 (base), rt=100 (offset), dest=8
+    // Rt is initialized to 0, but is target destination register
+    setupExecuteStage(LDW_INSTR, 1000, 0, 8);  // rt=dest_reg (8), rs= 1000 ,imm=100 (offset)
 
     // Execute the instruction
     sim->execute();
