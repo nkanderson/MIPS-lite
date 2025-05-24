@@ -24,7 +24,7 @@ struct PipelineStageData {
                            ///< to accurately calculate PC relative addressing
     uint32_t rs_value;     ///< Value read from rs register
     uint32_t rt_value;     ///< Value read from rt register
-    uint32_t alu_result;   ///< Result of ALU operation or effective address
+    int32_t alu_result;    ///< Result of ALU operation or effective address (signed)
     uint32_t memory_data;  ///< Data read from memory (if applicable)
     std::optional<uint8_t> dest_reg;  ///< Destination register (if any)
     uint32_t branch_target;           ///< Target address for branch/jump
@@ -53,6 +53,8 @@ struct PipelineStageData {
 
     // Check if stage is a bubble (no instruction)
     bool isEmpty() const { return instruction == nullptr; }
+    int32_t getRsValueSigned() const { return static_cast<int32_t>(rs_value); }
+    int32_t getRtValueSigned() const { return static_cast<int32_t>(rt_value); }
 };
 
 /**
@@ -75,6 +77,7 @@ class FunctionalSimulator {
      */
     FunctionalSimulator(RegisterFile* rf, Stats* st, IMemoryParser* mem,
                         bool enable_forwarding = false);
+
 
     // Getter methods
 
@@ -105,6 +108,8 @@ class FunctionalSimulator {
      * @throws std::out_of_range if the stage index is invalid.
      */
     const PipelineStageData* getPipelineStage(int stage) const;
+
+    bool isBranchTaken() const { return branch_taken; }
 
     // Setter methods
 
@@ -226,24 +231,20 @@ class FunctionalSimulator {
      */
     bool isRegisterWriteInstruction(const Instruction* instr) const;
 
-    /**
-     * @brief Helper method to determine the destination register for an instruction.
-     * @param instr Pointer to the instruction to check.
-     * @return The destination register number, or std::nullopt if none.
-     */
-    std::optional<uint8_t> getDestinationRegister(const Instruction* instr) const;
 
     /**
-     * @brief Helper method to implement forwarding logic.
-     * @param stage Stage index that needs the value.
-     * @param reg_num Register number to forward.
-     * @return Forwarded value if available, otherwise register value.
+     * @brief Helper method to get the value of a register.
+     * @param reg_num Register number to read. Handles forwarding if needed. Note that this
+     * function should only be called when the pipeline is not stalled. If stalled we shouldn't be 
+     * reading any registers.
+     * @return Value of the register.
      */
-    uint32_t getForwardedValue(int stage, uint8_t reg_num);
+    uint32_t readRegisterValue(uint8_t reg_num);
 
-// Allow functional simulator tests access to private class member pipeline
 #ifdef UNIT_TEST
+     // Allow functional simulator tests access to private class member pipeline
    public:
     std::array<std::unique_ptr<PipelineStageData>, NUM_STAGES>& getPipeline() { return pipeline; }
 #endif
+
 };
