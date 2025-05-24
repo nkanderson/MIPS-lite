@@ -87,11 +87,10 @@ class DecodeStageTest : public ::testing::Test {
     }
 };
 
-// Test I-type instruction decode (ADDI) - Most basic case
+// Test R-type instruction decode (ADD) - Most basic case
 // This validates: register reading, destination register setting, instruction decoding
-TEST_F(DecodeStageTest, DecodeBasicITypeInstruction) {
+TEST_F(DecodeStageTest, DecodeBasicRTypeInstruction) {
     // This instruction reads $1 (rs=1), adds immediate 50, writes result to $3 (rt=3)
-    
     
     // Set up the decode stage with our instruction
     setupDecodeStage(r_type_add_instr);
