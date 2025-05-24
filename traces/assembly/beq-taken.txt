@@ -4,3 +4,17 @@ BEQ R1 R2 2
 ADDI R1 R0 6
 ADDI R1 R0 10
 HALT
+
+Expected stats:
+5 total instructions
+3 arithmetic ops
+2 control flow ops
+11 total cycles with or without forwarding
+2-cycle branch penalty (note, we executed 1 fewer instruction than the beq-nottaken example)
+- I don't think any stalls are recorded, but we will flush 2 instructions
+
+PC at 0x14 (20, or the 6th instruction)
+
+Changed registers and their contents:
+R1 = 14
+R2 = 4
