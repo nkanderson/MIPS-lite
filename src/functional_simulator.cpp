@@ -176,7 +176,9 @@ void FunctionalSimulator::execute() {
 
         case mips_lite::opcode::JR:
             // Jump register - use the value in Rs as the new PC
-            ex_data->alu_result = ex_data->rs_value;
+            // TODO: Instructions for MIPs Lite seem unclear but we should verify this
+            // actual mips instruction uses rs_value << 4 | 4 msb's of PC
+            ex_data->alu_result = (ex_data->pc & 0xF0000000) | (ex_data->rs_value * 4); 
             branch_taken = true;
             break;
 

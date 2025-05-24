@@ -17,7 +17,6 @@
 #include "stats.h"
 
 using ::testing::NiceMock;
-using ::testing::Return;
 
 // Only mock the memory parser
 class MockMemoryParser : public IMemoryParser {
