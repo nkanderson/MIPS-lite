@@ -1,5 +1,5 @@
 ### Root CMakeLists.txt for MIPS-Lite project
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.15) 
 
 # Always define toolchain file so we have same setup
 set(CMAKE_TOOLCHAIN_FILE "${CMAKE_SOURCE_DIR}/cmake/toolchain.cmake")
@@ -36,6 +36,7 @@ FetchContent_MakeAvailable(googletest)
 set(SOURCE_FILES
     src/functional_simulator.cpp
     src/mips_mem_parser.cpp
+    src/utilities.cpp
     src/mips_instruction.cpp
     src/stats.cpp
 )
@@ -51,6 +52,8 @@ enable_testing()
 add_subdirectory(tests/proj_setup)
 add_subdirectory(tests/mem_parser)
 add_subdirectory(tests/libs)
+add_subdirectory(tests/utils_function)
 add_subdirectory(tests/mips_instruction)
 add_subdirectory(tests/reg_type)
 add_subdirectory(tests/functional_simulator)
+
