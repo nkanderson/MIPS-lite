@@ -1,5 +1,25 @@
 ADDI R1 R0 4
 BZ R1 2
-ADDI R1 R0 6
-ADDI R1 R0 10
+ADDI R1 R1 6
+ADDI R1 R1 10
 HALT
+
+Expected stats:
+5 total instructions
+3 arithmetic ops
+2 control flow ops
+
+Without forwarding:
+- 13 total cycles
+- 4 stalls
+- 0 cycle branch penalty
+
+With forwarding:
+- 9 total cycles
+- 0 stalls
+- 0 cycle branch penalty
+
+PC at 0x10 (16, or the 5th instruction)
+
+Changed registers and their contents:
+R1 = 20
