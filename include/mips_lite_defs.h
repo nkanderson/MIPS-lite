@@ -219,5 +219,8 @@ inline bool is_jump_instruction(uint8_t opcode) { return opcode == opcode::JR; }
 inline bool is_memory_instruction(uint8_t opcode) {
     return opcode == opcode::LDW || opcode == opcode::STW;
 }
+inline bool is_halt_instruction(uint32_t instruction) {
+    return get_opcode(instruction) == opcode::HALT;
+}
 
 }  // namespace mips_lite
