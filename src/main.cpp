@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <unordered_set>
 #include <set>
+#include <filesystem>
 
 // Program Libraries
 #include "functional_simulator.h"
@@ -27,6 +28,7 @@ int main (int argc, char* argv[]) {
 
     // Default settings for no args
     input_tracename_ = "traces/hex/randomtrace.txt";
+    output_tracename_ = "output/traceout.txt";
     bool time_info_ = false;
     bool forward_ = false;
     bool enable_mem_save_ = false;
@@ -36,10 +38,28 @@ int main (int argc, char* argv[]) {
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
         if (arg == "-i") {
-            // TODO: Have way to check if filepath to trace exists in directory, else throw an error
+            // Check if next arg exists and check if next arg is not an flag
+            if (i + 1 >= argc) {
+                throw std::invalid_argument("Output filepath must be provided after -i argument.");
+            } else if (argv[i+1][0] == '-') {
+                throw std::invalid_argument("Missing filepath after -i argument.");
+            }
+
             input_tracename_ = argv[i+1];   // Saves input filepath into inFile
+
+            // Verify that path to file exists
+            if (!std::filesystem::exists(input_tracename_)) {
+                throw std::invalid_argument("Input file \"" + input_tracename_ +"\" does not exists.");
+            }
+
             i++;                            // Skips arg with filepath
         } else if (arg == "-o") {
+            // Check if next arg exists and check if next arg is not an flag
+            if (i + 1 >= argc) {
+                throw std::invalid_argument("Output filepath must be provided after -o argument.");
+            } else if (argv[i+1][0] == '-') {
+                throw std::invalid_argument("Missing filepath after -o argument.");
+            }
             output_tracename_ = argv[i+1];  // Saves output filepath into outFile
             enable_mem_save_ = true;        // Enable memory save to file
             i++;                            // Skips arg with filepath
@@ -61,7 +81,7 @@ int main (int argc, char* argv[]) {
     std::cout << "\t Output Filepath:\t" << output_tracename_ << "\n";
     std::cout << "\t Print Memory Contents:\t" << (enable_mem_print_ ? "ENABLED" : "DISABLED") << "\n";
     std::cout << "\t Print Timing Info:\t" << (time_info_ ? "ENABLED" : "DISABLED") << "\n";
-    std::cout << "\t Forwarding:\t\t" << (forward_ ? "ENABLED" : "DISABLED") << "\n\n";
+    std::cout << "\t Forwarding:\t\t" << (forward_ ? "ENABLED" : "DISABLED") << "\n";
 
     // Create Stats, Register File, and Memory Parser class instance
     Stats stats;
@@ -104,7 +124,9 @@ int main (int argc, char* argv[]) {
     }
 
     // Print Total Number of Stalls
-    std::cout << "\tTotal Stalls:\t" << fs.getStall() << "\n";
+    if (time_info_) {
+        std::cout << "\tTotal Stalls:\t" << stats.getStalls() << "\n";
+    }
 
     // Print Final Memory State
     std::set<uint8_t> final_memory_(stats.getMemoryAddresses().begin(), stats.getMemoryAddresses().end());
