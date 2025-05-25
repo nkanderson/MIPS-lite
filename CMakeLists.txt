@@ -44,7 +44,13 @@ set(SOURCE_FILES
 add_library(mips_lite_lib ${SOURCE_FILES})
 
 # Create main binary target (will add actual source files later)
-# add_executable(mips_simulator src/main.cpp)
+add_executable(mips_simulator src/main.cpp)
+
+# Set debug flag for debug builds
+target_compile_definitions(mips_simulator PRIVATE $<$<CONFIG:Debug>:DEBUG_MODE=1>)
+
+# Link the library to the main executable
+target_link_libraries(mips_simulator PRIVATE mips_lite_lib)
 
 # Enable testing
 enable_testing()
