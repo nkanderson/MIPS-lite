@@ -11,6 +11,7 @@
 #include "mips_mem_parser.h"
 #include "register_file.h"
 #include "mips_lite_defs.h"
+#include "mips_instruction.h"
 
 
 /**
