@@ -192,8 +192,48 @@ void FunctionalSimulator::execute() {
     }
 }
 
+/**
+ * @brief Performs memory operations for the instruction in the MEMORY stage.
+ *
+ * This method handles data memory access for load and store instructions.
+ * For load instructions (LDW), it reads memory at the computed address and
+ * stores the value in the pipeline data for use in the write-back stage.
+ * For store instructions (STW), it writes the value from the rt register
+ * to the computed memory address and logs the access in the stats.
+ */
 void FunctionalSimulator::memory() {
-    // Stub: Access memory if needed (load or store only)
+    // Get reference to PipelineStageData pointer in memory stage
+    // using auto to automatically deduce the type
+    auto& mem_data = pipeline[MEMORY];
+
+    // In the case of a stall cycle or no instruction in
+    // the memory stage, just return
+    if (!mem_data || mem_data->isEmpty()) {
+        return;
+    }
+
+    uint8_t opcode = mem_data->instruction->getOpcode();
+    uint32_t addr = mem_data->alu_result;
+
+    switch (opcode) {
+        // Load word from memory
+        case mips_lite::opcode::LDW:
+            mem_data->memory_data = memory_parser->readMemory(addr);
+            break;
+
+        // Store word in memory
+        case mips_lite::opcode::STW:
+            // Write the value to memory and add the address to the stats tracking
+            // of modified memory locations
+            memory_parser->writeMemory(addr, mem_data->rt_value);
+            stats->addMemoryAddress(addr);
+            break;
+
+        // All other instruction do not access memory
+        default:
+            // Non-memory instruction: do nothing
+            break;
+    }
 }
 
 /**
@@ -224,7 +264,11 @@ void FunctionalSimulator::writeBack() {
     // not an instruction has produced any alu_result.
     if (wb_data->dest_reg.has_value()) {
         uint8_t dest = wb_data->dest_reg.value();
-        uint32_t value = wb_data->alu_result;
+        uint8_t opcode = wb_data->instruction->getOpcode();
+
+        // For load, use memory_data, otherwise use alu_result
+        uint32_t value =
+            (opcode == mips_lite::opcode::LDW) ? wb_data->memory_data : wb_data->alu_result;
 
         // Write the value to the register file
         register_file->write(dest, value);
