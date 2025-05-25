@@ -78,7 +78,6 @@ class FunctionalSimulator {
     FunctionalSimulator(RegisterFile* rf, Stats* st, IMemoryParser* mem,
                         bool enable_forwarding = false);
 
-
     // Getter methods
 
     /**
@@ -231,20 +230,18 @@ class FunctionalSimulator {
      */
     bool isRegisterWriteInstruction(const Instruction* instr) const;
 
+    /**
+     * @brief Helper method to determine the destination register for an instruction.
+     * @param instr Pointer to the instruction to check.
+     * @return The destination register number, or std::nullopt if none.
+     */
+    std::optional<uint8_t> getDestinationRegister(const Instruction* instr) const;
 
     /**
-     * @brief Helper method to get the value of a register.
-     * @param reg_num Register number to read. Handles forwarding if needed. Note that this
-     * function should only be called when the pipeline is not stalled. If stalled we shouldn't be 
-     * reading any registers.
-     * @return Value of the register.
+     * @brief Helper method to implement forwarding logic.
+     * @param stage Stage index that needs the value.
+     * @param reg_num Register number to forward.
+     * @return Forwarded value if available, otherwise register value.
      */
-    uint32_t readRegisterValue(uint8_t reg_num);
-
-#ifdef UNIT_TEST
-     // Allow functional simulator tests access to private class member pipeline
-   public:
-    std::array<std::unique_ptr<PipelineStageData>, NUM_STAGES>& getPipeline() { return pipeline; }
-#endif
-
+    uint32_t getForwardedValue(int stage, uint8_t reg_num);
 };

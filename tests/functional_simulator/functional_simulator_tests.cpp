@@ -114,6 +114,60 @@ TEST_F(FunctionalSimulatorTest, GetPipelineStage) {
     }
 }
 
+/**
+ * @test WriteBackWritesToRegisterAndUpdatesStats
+ * @brief Verifies that the writeBack() method correctly writes the ALU result to the
+ * destination register and records the register in the stats tracker.
+ */
+TEST_F(FunctionalSimulatorTest, WriteBackWritesToRegisterAndUpdatesStats) {
+    // Set up known values
+    uint8_t dest_reg = 8;
+    uint32_t expected_value = 0x12345678;
+
+    // Manually populate WRITEBACK stage with a PipelineStageData pointer
+    // that has our desired data.
+    auto data = std::make_unique<PipelineStageData>();
+    data->alu_result = expected_value;
+    data->dest_reg = dest_reg;
+    data->instruction = std::make_unique<Instruction>(0x6789ABCD);
+    sim->advancePipeline();
+    sim->getPipeline()[FunctionalSimulator::WRITEBACK] = std::move(data);
+
+    sim->writeBack();
+
+    // Check if value was written to the correct register
+    EXPECT_EQ(rf.read(dest_reg), expected_value);
+
+    // Check if stats updated with the same register
+    const auto& modified_regs = stats.getRegisters();
+    EXPECT_EQ(modified_regs.size(), 1);
+    EXPECT_TRUE(modified_regs.count(dest_reg));
+}
+
+/**
+ * @test WriteBackEmptyDestRegReturns
+ * @brief Ensures that writeBack() performs no action if the destination register is not set,
+ * leaving the register file and stats unchanged.
+ */
+TEST_F(FunctionalSimulatorTest, WriteBackEmptyDestRegReturns) {
+    // Set up known value for ALU result
+    uint32_t expected_value = 0x12345678;
+
+    // NOTE: No dest_reg is set here, so writeBack should return without
+    // writing to the register file.
+    auto data = std::make_unique<PipelineStageData>();
+    data->alu_result = expected_value;
+    data->instruction = std::make_unique<Instruction>(0x6789ABCD);
+    sim->advancePipeline();
+    sim->getPipeline()[FunctionalSimulator::WRITEBACK] = std::move(data);
+
+    sim->writeBack();
+
+    // stats should show no modified registers
+    const auto& modified_regs = stats.getRegisters();
+    EXPECT_EQ(modified_regs.size(), 0);
+}
+
 /*
 // The following or something similar may be used to test individual methods
 // with mocked memory parser methods like readInstruction
