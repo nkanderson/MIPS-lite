@@ -75,13 +75,14 @@ int main (int argc, char* argv[]) {
     }
 
     // Print Current Settings to stdout
-    // TODO: Maybe add a debug mode to print this?
+    #ifdef DEBUG_MODE
     std::cout << "Current Settings: " << "\n";
     std::cout << "\t Input Filepath:\t" << input_tracename_ << "\n";
     std::cout << "\t Output Filepath:\t" << output_tracename_ << "\n";
     std::cout << "\t Print Memory Contents:\t" << (enable_mem_print_ ? "ENABLED" : "DISABLED") << "\n";
     std::cout << "\t Print Timing Info:\t" << (time_info_ ? "ENABLED" : "DISABLED") << "\n";
     std::cout << "\t Forwarding:\t\t" << (forward_ ? "ENABLED" : "DISABLED") << "\n";
+    #endif
 
     // Create Stats, Register File, and Memory Parser class instance
     Stats stats;
