@@ -114,6 +114,10 @@ TEST_F(FunctionalSimulatorTest, GetPipelineStage) {
     }
 }
 
+// ---------------------------
+// writeBack method
+// ---------------------------
+
 /**
  * @test WriteBackWritesToRegisterAndUpdatesStats
  * @brief Verifies that the writeBack() method correctly writes the ALU result to the
@@ -130,7 +134,6 @@ TEST_F(FunctionalSimulatorTest, WriteBackWritesToRegisterAndUpdatesStats) {
     data->alu_result = expected_value;
     data->dest_reg = dest_reg;
     data->instruction = std::make_unique<Instruction>(0x6789ABCD);
-    sim->advancePipeline();
     sim->getPipeline()[FunctionalSimulator::WRITEBACK] = std::move(data);
 
     sim->writeBack();
@@ -158,7 +161,6 @@ TEST_F(FunctionalSimulatorTest, WriteBackEmptyDestRegReturns) {
     auto data = std::make_unique<PipelineStageData>();
     data->alu_result = expected_value;
     data->instruction = std::make_unique<Instruction>(0x6789ABCD);
-    sim->advancePipeline();
     sim->getPipeline()[FunctionalSimulator::WRITEBACK] = std::move(data);
 
     sim->writeBack();
@@ -167,6 +169,38 @@ TEST_F(FunctionalSimulatorTest, WriteBackEmptyDestRegReturns) {
     const auto& modified_regs = stats.getRegisters();
     EXPECT_EQ(modified_regs.size(), 0);
 }
+
+/**
+ * @test WriteBackUsesMemoryDataForLoad
+ * @brief Verifies that the writeBack() method writes memory_data to the register
+ * file for load instructions (LDW), instead of alu_result.
+ */
+TEST_F(FunctionalSimulatorTest, WriteBackUsesMemoryDataForLoad) {
+    uint8_t dest_reg = 9;
+    uint32_t expected_value = 0x01234567;
+
+    auto data = std::make_unique<PipelineStageData>();
+    data->dest_reg = dest_reg;
+    // alu_result should be ignored
+    data->alu_result = 0x89ABCDEF;
+    // expected_value in memory_data should be written
+    data->memory_data = expected_value;
+    data->instruction = std::make_unique<Instruction>((mips_lite::opcode::LDW << 26));
+
+    sim->getPipeline()[FunctionalSimulator::WRITEBACK] = std::move(data);
+
+    sim->writeBack();
+
+    EXPECT_EQ(rf.read(dest_reg), expected_value);
+
+    const auto& modified_regs = stats.getRegisters();
+    EXPECT_EQ(modified_regs.size(), 1);
+    EXPECT_TRUE(modified_regs.count(dest_reg));
+}
+
+// ---------------------------
+// memory method
+// ---------------------------
 
 /**
  * @test MemoryStageLoadsDataFromMemory
