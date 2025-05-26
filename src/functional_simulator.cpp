@@ -1,9 +1,8 @@
 #include "functional_simulator.h"
 
-#include <cstdint>
-
 #include <sys/types.h>
 
+#include <cstdint>
 #include <optional>
 
 #include "memory_interface.h"
@@ -51,7 +50,7 @@ void FunctionalSimulator::instructionFetch() {
 
 void FunctionalSimulator::instructionDecode() {
     // Operation: Decode instruction and access register file to read the register sources
-    
+
     PipelineStageData* id_data = pipeline[PipelineStage::DECODE].get();
 
     if (id_data == nullptr || stall > 0) {
@@ -61,23 +60,22 @@ void FunctionalSimulator::instructionDecode() {
 
     uint8_t rs = id_data->instruction->getRs();
     uint8_t rt = id_data->instruction->getRt();
-    
+
     id_data->rs_value = readRegisterValue(rs);
 
     // Determine register Destination & optional second source register
-    if(id_data->instruction->hasRd()) {
+    if (id_data->instruction->hasRd()) {
         id_data->dest_reg = id_data->instruction->getRd();
-        //R-type instruction has two source registers, get second source register
+        // R-type instruction has two source registers, get second source register
         id_data->rt_value = readRegisterValue(rt);
-    }
-    else if(!id_data->instruction->hasRd() && isRegisterWriteInstruction(id_data->instruction.get())) {
-        // Destination register is rt 
+    } else if (!id_data->instruction->hasRd() &&
+               isRegisterWriteInstruction(id_data->instruction.get())) {
+        // Destination register is rt
         id_data->dest_reg = id_data->instruction->getRt();
-    }
-    else {
+    } else {
         // No destination register
         id_data->dest_reg = std::nullopt;
-        if(id_data->instruction->getOpcode() == mips_lite::opcode::BEQ) {
+        if (id_data->instruction->getOpcode() == mips_lite::opcode::BEQ) {
             // BEQ has two source registers
             id_data->rt_value = readRegisterValue(rt);
         }
@@ -85,11 +83,11 @@ void FunctionalSimulator::instructionDecode() {
 }
 
 void FunctionalSimulator::execute() {
-    if(isStageEmpty(PipelineStage::EXECUTE)) {
+    if (isStageEmpty(PipelineStage::EXECUTE)) {
         // No instruction to execute
         return;
     }
-    PipelineStageData* ex_data = pipeline[PipelineStage::EXECUTE].get(); 
+    PipelineStageData* ex_data = pipeline[PipelineStage::EXECUTE].get();
 
     switch (ex_data->instruction->getOpcode()) {
         // Arithmetic Operations
@@ -98,21 +96,24 @@ void FunctionalSimulator::execute() {
             ex_data->alu_result = ex_data->getRsValueSigned() + ex_data->getRtValueSigned();
             break;
         case mips_lite::opcode::ADDI:
-            ex_data->alu_result = ex_data->getRsValueSigned() + ex_data->instruction->getImmediate();
+            ex_data->alu_result =
+                ex_data->getRsValueSigned() + ex_data->instruction->getImmediate();
             break;
 
         case mips_lite::opcode::SUB:
             ex_data->alu_result = ex_data->getRsValueSigned() - ex_data->getRtValueSigned();
             break;
         case mips_lite::opcode::SUBI:
-            ex_data->alu_result = ex_data->getRsValueSigned() - ex_data->instruction->getImmediate();
+            ex_data->alu_result =
+                ex_data->getRsValueSigned() - ex_data->instruction->getImmediate();
             break;
 
         case mips_lite::opcode::MUL:
             ex_data->alu_result = ex_data->getRsValueSigned() * ex_data->getRtValueSigned();
             break;
         case mips_lite::opcode::MULI:
-            ex_data->alu_result = ex_data->getRsValueSigned() * ex_data->instruction->getImmediate();
+            ex_data->alu_result =
+                ex_data->getRsValueSigned() * ex_data->instruction->getImmediate();
             break;
 
         // Logical Operations
@@ -142,11 +143,13 @@ void FunctionalSimulator::execute() {
         // Effective Address Calculation is signed
         case mips_lite::opcode::LDW:
             // Load word - calculate effective address
-            ex_data->alu_result = ex_data->getRsValueSigned() + ex_data->instruction->getImmediate();
+            ex_data->alu_result =
+                ex_data->getRsValueSigned() + ex_data->instruction->getImmediate();
             break;
 
         case mips_lite::opcode::STW:
-            ex_data->alu_result = ex_data->getRsValueSigned() + ex_data->instruction->getImmediate();
+            ex_data->alu_result =
+                ex_data->getRsValueSigned() + ex_data->instruction->getImmediate();
             break;
 
         // Control Flow Ops
@@ -154,29 +157,31 @@ void FunctionalSimulator::execute() {
             if (ex_data->rs_value == 0) {
                 ex_data->alu_result = ex_data->pc + (ex_data->instruction->getImmediate() * 4);
                 branch_taken = true;  // Indicate that a branch was taken
-                                      // TODO: Controller will need to clear this flag after the branch is taken
+                                      // TODO: Controller will need to clear this flag after the
+                                      // branch is taken
                 break;
             }
-            branch_taken = false;  // No branch taken
+            branch_taken = false;               // No branch taken
             ex_data->alu_result = ex_data->pc;  // No change (PC should be updated in fetch stage)
             break;
 
         case mips_lite::opcode::BEQ:
             if (ex_data->rs_value == ex_data->rt_value) {
                 // Branch if equal - calculate target address
-                
+
                 ex_data->alu_result = ex_data->pc + (ex_data->instruction->getImmediate() * 4);
                 branch_taken = true;  // Indicate that a branch was taken
             } else {
                 // No branch, PC will be updated normally
                 branch_taken = false;  // No branch taken
-                ex_data->alu_result = ex_data->pc;  // No change (PC should be updated in fetch stage)
+                ex_data->alu_result =
+                    ex_data->pc;  // No change (PC should be updated in fetch stage)
             }
             break;
 
         case mips_lite::opcode::JR:
             // Jump register - use the value in Rs as the new PC
-            ex_data->alu_result = ex_data->rs_value;  // Set PC to value in Rs 
+            ex_data->alu_result = ex_data->rs_value;  // Set PC to value in Rs
             branch_taken = true;
             break;
 
@@ -192,8 +197,48 @@ void FunctionalSimulator::execute() {
     }
 }
 
+/**
+ * @brief Performs memory operations for the instruction in the MEMORY stage.
+ *
+ * This method handles data memory access for load and store instructions.
+ * For load instructions (LDW), it reads memory at the computed address and
+ * stores the value in the pipeline data for use in the write-back stage.
+ * For store instructions (STW), it writes the value from the rt register
+ * to the computed memory address and logs the access in the stats.
+ */
 void FunctionalSimulator::memory() {
-    // Stub: Access memory if needed (load or store only)
+    // Get reference to PipelineStageData pointer in memory stage
+    // using auto to automatically deduce the type
+    auto& mem_data = pipeline[MEMORY];
+
+    // In the case of a stall cycle or no instruction in
+    // the memory stage, just return
+    if (!mem_data || mem_data->isEmpty()) {
+        return;
+    }
+
+    uint8_t opcode = mem_data->instruction->getOpcode();
+    uint32_t addr = mem_data->alu_result;
+
+    switch (opcode) {
+        // Load word from memory
+        case mips_lite::opcode::LDW:
+            mem_data->memory_data = memory_parser->readMemory(addr);
+            break;
+
+        // Store word in memory
+        case mips_lite::opcode::STW:
+            // Write the value to memory and add the address to the stats tracking
+            // of modified memory locations
+            memory_parser->writeMemory(addr, mem_data->rt_value);
+            stats->addMemoryAddress(addr);
+            break;
+
+        // All other instruction do not access memory
+        default:
+            // Non-memory instruction: do nothing
+            break;
+    }
 }
 
 /**
@@ -224,7 +269,11 @@ void FunctionalSimulator::writeBack() {
     // not an instruction has produced any alu_result.
     if (wb_data->dest_reg.has_value()) {
         uint8_t dest = wb_data->dest_reg.value();
-        uint32_t value = wb_data->alu_result;
+        uint8_t opcode = wb_data->instruction->getOpcode();
+
+        // For load, use memory_data, otherwise use alu_result
+        uint32_t value =
+            (opcode == mips_lite::opcode::LDW) ? wb_data->memory_data : wb_data->alu_result;
 
         // Write the value to the register file
         register_file->write(dest, value);
@@ -299,22 +348,24 @@ bool FunctionalSimulator::isRegisterWriteInstruction(const Instruction* instr) c
 }
 
 uint32_t FunctionalSimulator::readRegisterValue(uint8_t reg_num) {
-    
     if (reg_num == 0) {
         return 0;  // $0 register always returns 0
-    }               // And never has hazards
-    if(stall > 0) {
-        throw std::runtime_error("Stall detected in ID stage but wasn't properly handled by control logic. Should never attempt to read during a stall");
+    }              // And never has hazards
+    if (stall > 0) {
+        throw std::runtime_error(
+            "Stall detected in ID stage but wasn't properly handled by control logic. Should never "
+            "attempt to read during a stall");
     }
     // Check EXE stage for hazards
-    if(!isStageEmpty(PipelineStage::EXECUTE) && pipeline[PipelineStage::EXECUTE]->dest_reg.value() == reg_num) {
+    if (!isStageEmpty(PipelineStage::EXECUTE) &&
+        pipeline[PipelineStage::EXECUTE]->dest_reg.value() == reg_num) {
         return pipeline[PipelineStage::EXECUTE]->alu_result;
     }
     // Check MEM stage for hazards
-    if(!isStageEmpty(PipelineStage::MEMORY) && pipeline[PipelineStage::MEMORY]->dest_reg.value() == reg_num) {
+    if (!isStageEmpty(PipelineStage::MEMORY) &&
+        pipeline[PipelineStage::MEMORY]->dest_reg.value() == reg_num) {
         return pipeline[PipelineStage::MEMORY]->alu_result;
-    }
-    else {
+    } else {
         return register_file->read(reg_num);
     }
 }

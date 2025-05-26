@@ -114,6 +114,10 @@ TEST_F(FunctionalSimulatorTest, GetPipelineStage) {
     }
 }
 
+// ---------------------------
+// writeBack method
+// ---------------------------
+
 /**
  * @test WriteBackWritesToRegisterAndUpdatesStats
  * @brief Verifies that the writeBack() method correctly writes the ALU result to the
@@ -130,7 +134,6 @@ TEST_F(FunctionalSimulatorTest, WriteBackWritesToRegisterAndUpdatesStats) {
     data->alu_result = expected_value;
     data->dest_reg = dest_reg;
     data->instruction = std::make_unique<Instruction>(0x6789ABCD);
-    sim->advancePipeline();
     sim->getPipeline()[FunctionalSimulator::WRITEBACK] = std::move(data);
 
     sim->writeBack();
@@ -158,7 +161,6 @@ TEST_F(FunctionalSimulatorTest, WriteBackEmptyDestRegReturns) {
     auto data = std::make_unique<PipelineStageData>();
     data->alu_result = expected_value;
     data->instruction = std::make_unique<Instruction>(0x6789ABCD);
-    sim->advancePipeline();
     sim->getPipeline()[FunctionalSimulator::WRITEBACK] = std::move(data);
 
     sim->writeBack();
@@ -166,6 +168,121 @@ TEST_F(FunctionalSimulatorTest, WriteBackEmptyDestRegReturns) {
     // stats should show no modified registers
     const auto& modified_regs = stats.getRegisters();
     EXPECT_EQ(modified_regs.size(), 0);
+}
+
+/**
+ * @test WriteBackUsesMemoryDataForLoad
+ * @brief Verifies that the writeBack() method writes memory_data to the register
+ * file for load instructions (LDW), instead of alu_result.
+ */
+TEST_F(FunctionalSimulatorTest, WriteBackUsesMemoryDataForLoad) {
+    uint8_t dest_reg = 9;
+    uint32_t expected_value = 0x01234567;
+
+    auto data = std::make_unique<PipelineStageData>();
+    data->dest_reg = dest_reg;
+    // alu_result should be ignored
+    data->alu_result = 0x89ABCDEF;
+    // expected_value in memory_data should be written
+    data->memory_data = expected_value;
+    data->instruction = std::make_unique<Instruction>((mips_lite::opcode::LDW << 26));
+
+    sim->getPipeline()[FunctionalSimulator::WRITEBACK] = std::move(data);
+
+    sim->writeBack();
+
+    EXPECT_EQ(rf.read(dest_reg), expected_value);
+
+    const auto& modified_regs = stats.getRegisters();
+    EXPECT_EQ(modified_regs.size(), 1);
+    EXPECT_TRUE(modified_regs.count(dest_reg));
+}
+
+// ---------------------------
+// memory method
+// ---------------------------
+
+/**
+ * @test MemoryStageLoadsDataFromMemory
+ * @brief Verifies that a load instruction causes the simulator to read from memory
+ * and stores the result in the pipeline's memory_data field.
+ */
+TEST_F(FunctionalSimulatorTest, MemoryStageLoadsDataFromMemory) {
+    constexpr uint32_t addr = 0x1000;
+    constexpr uint32_t loaded_value = 0x1234ABCD;
+
+    EXPECT_CALL(mem, readMemory(addr)).Times(1).WillOnce(::testing::Return(loaded_value));
+
+    auto data = std::make_unique<PipelineStageData>();
+    data->alu_result = addr;
+    data->instruction = std::make_unique<Instruction>((mips_lite::opcode::LDW << 26));
+
+    sim->getPipeline()[FunctionalSimulator::MEMORY] = std::move(data);
+
+    sim->memory();
+
+    auto* result = sim->getPipelineStage(FunctionalSimulator::MEMORY);
+    ASSERT_NE(result, nullptr);
+    EXPECT_EQ(result->memory_data, loaded_value);
+}
+
+/**
+ * @test MemoryStageStoresDataToMemory
+ * @brief Verifies that a store instruction writes the correct value to memory and
+ * logs the memory address in the stats tracker.
+ */
+TEST_F(FunctionalSimulatorTest, MemoryStageStoresDataToMemory) {
+    constexpr uint32_t addr = 0x2000;
+    constexpr uint32_t store_value = 0xABCD5678;
+
+    EXPECT_CALL(mem, writeMemory(addr, store_value)).Times(1);
+
+    auto data = std::make_unique<PipelineStageData>();
+    data->alu_result = addr;
+    data->rt_value = store_value;
+    data->instruction = std::make_unique<Instruction>((mips_lite::opcode::STW << 26));
+
+    sim->getPipeline()[FunctionalSimulator::MEMORY] = std::move(data);
+
+    sim->memory();
+
+    const auto& modified_addrs = stats.getMemoryAddresses();
+    EXPECT_EQ(modified_addrs.size(), 1);
+    EXPECT_TRUE(modified_addrs.count(addr));
+}
+
+/**
+ * @test MemoryStageIgnoresNonMemoryInstructions
+ * @brief Ensures that the memory stage does not perform any memory access
+ * for non-memory instructions like MUL.
+ */
+TEST_F(FunctionalSimulatorTest, MemoryStageIgnoresNonMemoryInstructions) {
+    constexpr uint32_t mult_result = 0x3000;
+
+    // These should NOT be called
+    EXPECT_CALL(mem, readMemory).Times(0);
+    EXPECT_CALL(mem, writeMemory).Times(0);
+
+    auto data = std::make_unique<PipelineStageData>();
+    // This would be treated as an address in a load / store, but is a multiply result for MULT
+    data->alu_result = mult_result;
+    // Should remain unchanged from the initialized value of 0x0
+    data->memory_data = 0x0;
+    data->instruction = std::make_unique<Instruction>((mips_lite::opcode::MUL << 26));
+
+    sim->getPipeline()[FunctionalSimulator::MEMORY] = std::move(data);
+
+    sim->memory();
+
+    const auto* result = sim->getPipelineStage(FunctionalSimulator::MEMORY);
+    ASSERT_NE(result, nullptr);
+
+    // memory_data should not be changed
+    EXPECT_EQ(result->memory_data, 0x0);
+
+    // No memory addresses should be added to stats
+    const auto& modified_addrs = stats.getMemoryAddresses();
+    EXPECT_EQ(modified_addrs.size(), 0);
 }
 
 /*
