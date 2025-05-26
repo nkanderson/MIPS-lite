@@ -218,6 +218,7 @@ def main():
 
         # Rearrange array of strings to match binary layout
         line[:] = [line[i] for i in index]
+        
 
         # Print current items
         if debug == True:
