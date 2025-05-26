@@ -99,6 +99,8 @@ class FunctionalSimulator {
      */
     uint8_t getStall() const;
 
+    bool isHalted() const { return halt_pipeline; }
+
     static constexpr int getNumStages() { return NUM_STAGES; }
 
     /**
@@ -220,6 +222,9 @@ class FunctionalSimulator {
 
     /// Whether or not data forwarding is enabled
     bool forward;
+
+    /// Add flag for halt instruction
+    bool halt_pipeline = false;
 
     /// Countdown of the required stall cycles
     uint8_t stall;

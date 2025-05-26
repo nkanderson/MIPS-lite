@@ -45,7 +45,29 @@ bool FunctionalSimulator::isStageEmpty(int stage) const {
 }
 
 void FunctionalSimulator::instructionFetch() {
-    // Stub: TODO
+    if(!isStageEmpty(PipelineStage::FETCH) || halt_pipeline) {
+        // Fetch stage already has an instruction, do nothing
+        // or if halt_pipeline is true, we should not fetch a new instruction
+        return;
+    }
+    uint32_t instruction_word = memory_parser->readInstruction(pc);
+    if(mips_lite::is_halt_instruction(instruction_word)) {
+        // If the instruction is HALT, set the halt flag
+        halt_pipeline = true;
+        // Still create instruction and put in pipeline to finish instructions already
+        // in the pipeline
+    }
+    //Object creation
+    auto instruction = std::make_unique<Instruction>(instruction_word);
+    auto fetch_data = std::make_unique<PipelineStageData>();
+    fetch_data->instruction = std::move(instruction);
+    fetch_data->pc = pc;  // Store the current PC in the fetch stage data
+    // Place in pipeline
+    pipeline[PipelineStage::FETCH] = std::move(fetch_data);
+    // Increment PC for next instruction
+    if(!halt_pipeline) {
+        pc += 4;  
+    }
 }
 
 void FunctionalSimulator::instructionDecode() {
