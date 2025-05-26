@@ -1,0 +1,12 @@
+# Setting up registers
+ADDI R2 R0 -256     # R2 = 0xFFFFFF00
+ADDI R3 R0 -15415   # R3 = 0xFFFFC369
+ADDI R4 R0 -1       # R4 = 0xFFFFFFFF
+
+# Performing logical XOR
+XOR R20 R2 R3       # Expected: R20 = 0x00003C69
+XOR R21 R2 R0       # Expected: R21 = 0xFFFFFF00
+XOR R22 R2 R4       # Expected: R22 = 0x000000FF
+XORI R23 R3 255     # Expected: R23 = 0xFFFFC396
+XORI R24 R3 0       # Expected: R24 = 0xFFFFC369
+XORI R25 R3 1       # Expected: R25 = 0xFFFFC368

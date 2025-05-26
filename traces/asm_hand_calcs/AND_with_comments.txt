@@ -1,0 +1,12 @@
+# Setting up registers
+ADDI R2 R0 -256
+ADDI R3 R0 -15415
+ADDI R4 R0 -1
+
+#Performing a logical AND
+AND R14 R2 R3    # Expected: R14 = 0xFFFFC300
+AND R15 R2 R0    # Expected: R15 = 0x00000000
+AND R16 R2 R4    # Expected: R16 = 0xFFFFFF00
+ANDI R17 R3 255  # Expected: R17 = 0x00000069
+ANDI R18 R3 0    # Expected: R18 = 0x00000000
+ANDI R19 R3 1    # Expected: R19 = 0x00000001

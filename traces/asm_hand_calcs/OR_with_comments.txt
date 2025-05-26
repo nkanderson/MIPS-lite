@@ -1,0 +1,12 @@
+ADDI R2 R0 -256     # R2 = 0xFFFFFF00
+ADDI R3 R0 -15415   # R3 = 0xFFFFC369
+ADDI R4 R0 -1       # R4 = 0xFFFFFFFF
+
+
+# Performing a logical OR
+OR R8 R2 R3         # Expected: R8  = 0xFFFFFF69
+OR R9 R2 R0         # Expected: R9  = 0xFFFFFF00
+OR R10 R2 R4        # Expected: R10 = 0xFFFFFFFF
+ORI R11 R3 255      # Expected: R11 = 0xFFFFC3FF
+ORI R12 R3 0        # Expected: R12 = 0xFFFFC369
+ORI R13 R3 1        # Expected: R13 = 0xFFFFC369

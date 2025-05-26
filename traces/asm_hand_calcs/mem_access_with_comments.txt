@@ -1,0 +1,7 @@
+ADDI R1 R0 1000     # Hex Value for R1 = 0x000003E8 
+ADDI R2 R0 42       # Hex Value for R2 = 0x2A, where data is being stored
+
+STW R2 0(R1)        # Mem[R1 + 0] = R2 (store 42 to Mem[1000])
+ADDI R2 R0 0        # Clear R2 (set R2 = 0)
+
+LDW R2 0(R1)        # R2 = Mem[R1 + 0] (load 42 back from Mem[1000])
