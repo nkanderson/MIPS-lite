@@ -1,0 +1,32 @@
+ADDI R1 R0 5
+ADDI R2 R0 -5
+MULI R3 R1 6
+MULI R4 R2 -6
+MULI R5 R2 3
+MULI R6 R1 0
+MULI R7 R1 1
+HALT
+
+Expected stats:
+8 total instructions executed
+7 arithmetic ops
+1 control flow ops
+
+Without forwarding:
+- 13 total cycles
+- 1 stalls
+
+With forwarding:
+- 12 total cycles
+- 0 stalls
+
+PC at 0x1C (28, or the 8th instruction)
+
+Changed registers and their contents:
+R1 = 5
+R2 = -5
+R3 = 30
+R1 = 30
+R2 = -15
+R3 = 0
+R7 = 5
