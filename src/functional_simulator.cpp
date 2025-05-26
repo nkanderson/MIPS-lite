@@ -79,6 +79,10 @@ void FunctionalSimulator::instructionDecode() {
         // No instruction to decode
         return;
     }
+    // Track category of instructions
+    // TODO: Does this make sesne to keep here or should it be in another place? 
+    mips_lite::InstructionCategory category = mips_lite::get_instruction_category(id_data->instruction->getOpcode());
+    stats->incrementCategory(category);
 
     uint8_t rs = id_data->instruction->getRs();
     uint8_t rt = id_data->instruction->getRt();
@@ -306,49 +310,56 @@ void FunctionalSimulator::writeBack() {
 }
 
 void FunctionalSimulator::advancePipeline() {
-    // TODO: Might need to add more checks here
     // Release writeback stage
     pipeline[PipelineStage::WRITEBACK].reset();  // Smart pointer will delete the object
-
-    // Shift instructions forward in the pipeline (from higher to lower to avoid overwriting)
-    for (int i = PipelineStage::WRITEBACK; i > PipelineStage::FETCH; i--) {
-        pipeline[i] = std::move(pipeline[i - 1]);
-    }
-    // Note because of std::move Fetch stage is now empty
-
-    // Decrement stall counter if active
+    pipeline[PipelineStage::WRITEBACK] = std::move(pipeline[PipelineStage::MEMORY]);  // Move MEM to WB
+    pipeline[PipelineStage::MEMORY] = std::move(pipeline[PipelineStage::EXECUTE]);  // Move EXE to MEM
     if (stall > 0) {
-        stall--;
+        stats->incrementStalls();
+        // bubble insert
+        pipeline[PipelineStage::EXECUTE].reset();
+        // Do not advance ID or IF stages
     }
-    // TODO: Maybe increase tick counter here for stats
+    else {
+        pipeline[PipelineStage::EXECUTE] = std::move(pipeline[PipelineStage::DECODE]);  // Move ID to EXE
+        pipeline[PipelineStage::DECODE] = std::move(pipeline[PipelineStage::FETCH]);  // Move IF to ID
+        // Note: IF is now empty, so we can fetch a new instruction next cycle
+    }  
 }
 
 void FunctionalSimulator::cycle() {
     // Execute stages in reverse order since writeback should happen first
     // TODO: Might need to add other control logic here
+    stats->incrementClockCycles();
     writeBack();
     memory();
     execute();
+
+    // Check for branch taken, if so, update PC and reset IF & ID stages
+    if(isBranchTaken()) {
+        // Update PC to the branch target
+        setPC(pipeline[PipelineStage::EXECUTE]->alu_result);
+        setStall(0);  // Reset stall cycles
+        // Flush IF and ID stages
+        pipeline[PipelineStage::FETCH].reset();
+        pipeline[PipelineStage::DECODE].reset();
+        // TODO: Do we need to track branch penalties? I couldn't find any mention in project specs
+        // Reset branch taken flag
+        branch_taken = false;
+        advancePipeline();  
+        return; 
+    }
+    // If no branch taken, continue with normal pipeline operation
+    // Check for stalls and set stall cycles
+    // If stall cycles are greater than 0, we will not advance IF or ID stages
+    int stall_cycles = detectStalls();
+    setStall(stall_cycles);
+
     instructionDecode();
     instructionFetch();
-
-    // Advance pipeline
     advancePipeline();
 }
 
-bool FunctionalSimulator::detectHazards() {
-    // If forwarding is enabled, fewer stalls are needed
-    if (forward || isStageEmpty(PipelineStage::DECODE)) {
-        // TODO: Implement hazard detection with forwarding
-        return false;
-    } else {
-        // Simple hazard detection for no forwarding:
-        // Check if instruction in decode stage depends on result of instruction in execute or
-        // memory stage
-        return false;
-    }
-    return false;
-}
 
 bool FunctionalSimulator::isRegisterWriteInstruction(const Instruction* instr) const {
     if (instr == nullptr) {
@@ -378,16 +389,111 @@ uint32_t FunctionalSimulator::readRegisterValue(uint8_t reg_num) {
             "Stall detected in ID stage but wasn't properly handled by control logic. Should never "
             "attempt to read during a stall");
     }
-    // Check EXE stage for hazards
-    if (!isStageEmpty(PipelineStage::EXECUTE) &&
-        pipeline[PipelineStage::EXECUTE]->dest_reg.value() == reg_num) {
-        return pipeline[PipelineStage::EXECUTE]->alu_result;
+    // Check EXE stages for forwarding if necessary
+    if(!isStageEmpty(PipelineStage::EXECUTE)){
+        PipelineStageData* ex_data = pipeline[PipelineStage::EXECUTE].get();
+        if (ex_data->dest_reg.has_value() && ex_data->dest_reg.value() == reg_num) {
+            // Hazard detected, return the ALU result from EX stage
+            return ex_data->alu_result;
+        }
     }
-    // Check MEM stage for hazards
-    if (!isStageEmpty(PipelineStage::MEMORY) &&
-        pipeline[PipelineStage::MEMORY]->dest_reg.value() == reg_num) {
-        return pipeline[PipelineStage::MEMORY]->alu_result;
-    } else {
+    // Check MEM stage for forwarding if necessary
+    if(!isStageEmpty(PipelineStage::MEMORY)){
+        PipelineStageData* mem_data = pipeline[PipelineStage::MEMORY].get();
+        if (mem_data->dest_reg.has_value() && mem_data->dest_reg.value() == reg_num) {
+            // Hazard detected, return the ALU result from MEM stage
+            return mem_data->alu_result;
+        }
+    }
+    else {
+        // No hazard, read from register file
         return register_file->read(reg_num);
+    }
+}
+
+/**
+ * @brief Detects hazards in the pipeline and returns the number of stall cycles needed.
+ * 
+ * This method checks for data hazards between the stages of the pipeline. If a hazard is detected,
+ * it returns the number of stall cycles required to resolve it. If no hazards are detected, it
+ * returns 0.
+ *
+ * Stall rules:
+ * - EX stage hazard: 2 stalls without forwarding, 0 with forwarding
+ * - MEM stage hazard: 1 stall without forwarding, 0 with forwarding  
+ * - Load-use hazard: 2 stalls without forwarding, 1 stall with forwarding (special case)
+ *
+ * @return Number of stall cycles needed to resolve hazards, or 0 if no hazards are detected.
+ * @note The return number will be > 0 for as long as there is a hazard detected.
+ */
+int FunctionalSimulator::detectStalls(void) {
+    if (isStageEmpty(PipelineStage::DECODE)) {
+        return 0;  // No instruction to decode, no stalls needed
+    }
+
+    uint8_t rs = pipeline[PipelineStage::DECODE]->instruction->getRs();
+    uint8_t rt = pipeline[PipelineStage::DECODE]->instruction->getRt();
+    // Determine if rt is a source register
+    bool needs_rt = needsRtValue(pipeline[PipelineStage::DECODE]->instruction.get());
+
+    // Always skip r0, which is never a hazard
+    if (rs == 0 && !needs_rt) {
+        return 0;  
+    }
+    if (needs_rt && rt == 0) {
+        needs_rt = false;
+    }
+
+    // Check for hazards with the EX stage
+    if (!isStageEmpty(PipelineStage::EXECUTE)) {
+        const PipelineStageData* ex_data = pipeline[PipelineStage::EXECUTE].get();
+        if (ex_data->dest_reg.has_value()) {
+            uint8_t dest_reg = ex_data->dest_reg.value();
+            // Hazard if Rs or Rt matches destination register in EX stage
+            if (rs == dest_reg || (needs_rt && rt == dest_reg)) {
+                if(ex_data->instruction->getOpcode() == mips_lite::opcode::LDW) {
+                    // Load-use hazard
+                    return forward ? 1 : 2;  // 1 stall with forwarding, 2 stalls without
+                }
+                return forward ? 0 : 2;  // 2 stalls without forwarding
+            }
+        }
+    }
+    // Check for hazards with the MEM stage
+    if (!isStageEmpty(PipelineStage::MEMORY)) {
+        const PipelineStageData* mem_data = pipeline[PipelineStage::MEMORY].get();
+        if (mem_data->dest_reg.has_value()) {
+            uint8_t dest_reg = mem_data->dest_reg.value();
+            // Hazard if Rs or Rt matches destination register in MEM stage
+            if (rs == dest_reg || (needs_rt && rt == dest_reg)) {
+                return forward ? 0: 2;  // 1 stall without forwarding
+            }
+        }
+    }
+    return 0; // No hazards detected, no stalls needed
+}
+
+/**
+ * @brief Helper function to determine if instruction needs Rt register value (source operand).
+ * @param instr Instruction to check
+ * @return true if Rt value is needed as a source operand
+ */
+bool FunctionalSimulator::needsRtValue(const Instruction* instr) const {
+    if (!instr) return false;
+    
+    uint8_t opcode = instr->getOpcode();
+    
+    // R-type instructions use both Rs and Rt as source operands
+    if (instr->getInstructionType() == mips_lite::InstructionType::R_TYPE) {
+        return true;
+    }
+    
+    // I-type instructions that use Rt as source operand
+    switch (opcode) {
+        case mips_lite::opcode::BEQ:  // BEQ compares Rs and Rt
+        case mips_lite::opcode::STW:  // STW stores value from Rt
+            return true;
+        default:
+            return false;  // Most I-type instructions only use Rs
     }
 }

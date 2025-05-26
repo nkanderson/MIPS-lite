@@ -27,28 +27,52 @@ class IntegrationTest : public ::testing::Test {
     RegisterFile rf;
     Stats stats;
     NiceMock<MockMemoryParser> mem;
-    std::unique_ptr<FunctionalSimulator> sim;
+    std::unique_ptr<FunctionalSimulator> sim_no_forward;
+    std::unique_ptr<FunctionalSimulator> sim_with_forward;
 
-    void SetUp() override { sim = std::make_unique<FunctionalSimulator>(&rf, &stats, &mem); }
+    void SetUp() override { 
+        sim_no_forward = std::make_unique<FunctionalSimulator>(&rf, &stats, &mem, false);
+        sim_with_forward = std::make_unique<FunctionalSimulator>(&rf, &stats, &mem, true);
+    }
 };
 
 // ---------------------------
-// Helper Functions
+// Helper Functions (Updated for new cycle logic)
 // ---------------------------
 
 /**
- * @brief Runs through a single simulator clock cycle.
- * Should be the same sequence of calls as in our main program loop.
+ * @brief Run simulator until HALT instruction reaches writeback or max cycles
+ * Uses the new cycle() method which handles all pipeline stages automatically
  */
-void advancePipeline(FunctionalSimulator* sim) {
-    sim->writeBack(sim->getPipelineStage(4));
-    sim->memory(sim->getPipelineStage(3));
-    sim->execute(sim->getPipelineStage(2));
-    sim->instructionDecode(sim->getPipelineStage(1));
-    // FIXME: Update instructionFetch to accept a pointer (which might be null)
-    sim->instructionFetch(sim->getPipelineStage(0));
-    // FIXME: Create functional simulator clock method
-    sim->clock();
+int runUntilHalt(FunctionalSimulator* sim, int max_cycles = 1000) {
+    int cycle_count = 0;
+    
+    while (cycle_count < max_cycles) {
+        // Check if HALT has reached writeback stage
+        const PipelineStageData* wb_stage = sim->getPipelineStage(FunctionalSimulator::WRITEBACK);
+        if (wb_stage && wb_stage->instruction && 
+            wb_stage->instruction->getOpcode() == mips_lite::opcode::HALT) {
+            break;
+        }
+        
+        // Check if pipeline is completely empty (all instructions completed)
+        bool pipeline_empty = true;
+        for (int i = 0; i < sim->getNumStages(); ++i) {
+            if (!sim->isStageEmpty(i)) {
+                pipeline_empty = false;
+                break;
+            }
+        }
+        if (pipeline_empty && sim->isHalted()) {
+            break;
+        }
+        
+        // Use the new cycle() method
+        sim->cycle();
+        cycle_count++;
+    }
+    
+    return cycle_count;
 }
 
 /**
@@ -74,94 +98,67 @@ void setupMockMemory(MockMemoryParser& mem, const std::vector<uint32_t>& memory,
     EXPECT_CALL(mem, readInstruction(::testing::_))
         .WillRepeatedly(::testing::Invoke(memory_lookup));
 
-    EXPECT_CALL(mem, readMemory(::testing::_)).WillRepeatedly(::testing::Invoke(memory_lookup));
+    EXPECT_CALL(mem, readMemory(::testing::_))
+        .WillRepeatedly(::testing::Invoke(memory_lookup));
+}
+
+/**
+ * @brief Helper to reset simulator state for multiple test runs
+ */
+void resetSimulator(std::unique_ptr<FunctionalSimulator>& sim, RegisterFile& rf, Stats& stats, 
+                   MockMemoryParser& mem, bool enable_forwarding) {
+    rf = RegisterFile();  // Reset register file
+    stats = Stats();      // Reset stats
+    sim = std::make_unique<FunctionalSimulator>(&rf, &stats, &mem, enable_forwarding);
 }
 
 // ---------------------------
-// Test suite
+// Test suite (Updated for new functionality)
 // ---------------------------
 
 /**
- * @brief Example showing required in-order instruction access
- * Seems less likely we'll use this option, but we have it here
- * as an example in case.
+ * @brief Test branch not taken with both forwarding and no forwarding. 
+ * Results: 
+ * - No forwarding
+ *    R1 = 20 , PC = 16 
+ *    Cycles = 13
+ *    Stalls = 4
+ *    Branch Penalty = 0 
+ * - Forwarding
+ *    R1 = 20 , PC = 16
+ *    Cycles = 9
+ *    Stalls = 0
+ *    Branch Penalty = 0
+ *   
  */
-TEST_F(IntegrationTest, BeqNotTakenInOrderExample) {
-    // This is an alternative to using setupMockMemory, in a case where we want
-    // to test that readInstruction and readMemory are called in a particular order.
-    {
-        // seq ensures calls happen in order. The test will fail if the methods
-        // are called out of the order specified below.
-        InSequence seq;
-
-        // Fetch first instruction: ADDI R1 R0 4
-        EXPECT_CALL(mem, readInstruction(0x0)).WillOnce(Return(0x04010004));
-        // Fetch second instruction: ADDI R2 R0 4
-        EXPECT_CALL(mem, readInstruction(0x4)).WillOnce(Return(0x04020004));
-        // Fetch third instruction: BEQ R1 R2 2
-        EXPECT_CALL(mem, readInstruction(0x4)).WillOnce(Return(0x3c410002));
-        // Fetch fourth instruction: ADDI R1 R0 6
-        EXPECT_CALL(mem, readInstruction(0x4)).WillOnce(Return(0x04010006));
-        // Fetch fifth instruction: ADDI R1 R0 10
-        EXPECT_CALL(mem, readInstruction(0x4)).WillOnce(Return(0x0401000a));
-        // Fetch sixth instruction: HALT
-        EXPECT_CALL(mem, readInstruction(0x4)).WillOnce(Return(0x44000000));
-
-        // Examples for a test that reads memory, not used in BeqNotTaken test
-        // Simulated memory at 0x1000 returns 42 for lw
-        // EXPECT_CALL(mem, readMemory(0x1000)).WillOnce(Return(42));
-    }
-
-    while (!sim->getPipelineStage(4)->isHaltInstruction()) {
-        advancePipeline(sim.get());
-    }
-
-    // ---------------------
-    // Check Results
-    // ---------------------
-
-    EXPECT_EQ(rf.read(1), 20);
-    EXPECT_EQ(rf.read(2), 8);
-    EXPECT_EQ(stats.totalInstructions(), 6);
-}
-
-TEST_F(IntegrationTest, BeqNotTakenNoForwarding) {
+TEST_F(IntegrationTest, BZNotTaken) {
     std::vector<uint32_t> program = {
         0x04010004,  // ADDI R1 R0 4
-        0x04020004,  // ADDI R2 R0 4
-        0x3c410002,  // BEQ R1 R2 2
-        0x04010006,  // ADDI R1 R0 6
-        0x0401000a,  // ADDI R1 R0 10
-        0x44000000   // HALT
+        0x38200002,  // BZ R1 2 
+        0x04210006,  // ADDI R1 R1 6
+        0x0421000a,  // ADDI R1 R1 10  
+        0x44000000   // HALT 
     };
 
     setupMockMemory(mem, program);
 
-    // Examples for a test that reads / writes memory, not used in BeqNotTaken test
-    // EXPECT_CALL(mem, readMemory(0x0)).WillOnce(Return(42));
-    // EXPECT_CALL(mem, writeMemory(0x4, 100)).Times(1);
-
-    // Example of directly writing to the register file as setup, instead of including
-    // all the instructions necessary for a small program. Might be useful for more
-    // complex tests where we don't want to include all instructions for setup.
-    // rf.write(9, 58);  // R9 = 58
-
-    // TODO: Determine when HALT takes effect - when it's in writeback, or immediately
-    // after being fetched, or in decode? And adjust this or above instructions as
-    // needed to ensure all of our desired test instruction complete execution.
-    while (!sim->getPipelineStage(4)->isHaltInstruction()) {
-        advancePipeline(sim.get());
-    }
-
-    // ---------------------
-    // Check Results
-    // ---------------------
-
-    EXPECT_EQ(rf.read(1), 20);
-    EXPECT_EQ(rf.read(2), 8);
-    EXPECT_EQ(stats.totalInstructions(), 6);
-    // TODO: Add checks by category
-    // TODO: Add check for registers R1 and R2 listed as changed
-    // TODO: Add check that no memory address was listed as changed
-    // TODO: Add check for number of stalls
+    // Test without forwarding
+    int cycles_no_forward = runUntilHalt(sim_no_forward.get());
+    
+    EXPECT_EQ(rf.read(1), 20);  // Same final result
+    EXPECT_EQ(cycles_no_forward, 12); 
+    EXPECT_EQ(stats.getStalls(), 4); // Stalls without forwarding
+    
+    // Reset and test with forwarding
+    resetSimulator(sim_with_forward, rf, stats, mem, true);
+    setupMockMemory(mem, program);  // Re-setup mock for new simulator instance
+    
+    int cycles_with_forward = runUntilHalt(sim_with_forward.get());
+    
+    
+    EXPECT_EQ(rf.read(1), 20);  // Same final result
+    EXPECT_EQ(cycles_with_forward, 8);  // Expected cycle count with forwarding
+    EXPECT_EQ(stats.getStalls(), 0);  // No stalls with forwarding
+    
 }
+

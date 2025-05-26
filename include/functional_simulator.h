@@ -246,6 +246,20 @@ class FunctionalSimulator {
      */
     uint32_t readRegisterValue(uint8_t reg_num);
 
+    /* @brief Detects hazards in the pipeline and returns the number of stall cycles needed.
+ * 
+ * This method checks for data hazards between the stages of the pipeline. If a hazard is detected,
+ * it returns the number of stall cycles required to resolve it. If no hazards are detected, it
+ * returns 0.
+ *
+ * @return Number of stall cycles needed to resolve hazards, or 0 if no hazards are detected.
+ */
+    int detectStalls(void);
+    
+    bool needsRtValue(const Instruction* instr) const;
+
+
+
 #ifdef UNIT_TEST
      // Allow functional simulator tests access to private class member pipeline
    public:

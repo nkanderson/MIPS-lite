@@ -14,6 +14,7 @@
 #pragma once
 
 #include <cstdint>
+#include <stdexcept>
 
 namespace mips_lite {
 
@@ -104,6 +105,39 @@ inline InstructionType get_instruction_type(uint8_t opcode) {
             return InstructionType::R_TYPE;
         default:
             return InstructionType::I_TYPE;
+    }
+}
+
+inline InstructionCategory get_instruction_category(uint8_t opcode) {
+    switch (opcode) {
+        case opcode::ADD:
+        case opcode::ADDI:
+        case opcode::SUB:
+        case opcode::SUBI:
+        case opcode::MUL:
+        case opcode::MULI:
+            return InstructionCategory::ARITHMETIC;
+
+        case opcode::OR:
+        case opcode::ORI:
+        case opcode::AND:
+        case opcode::ANDI:
+        case opcode::XOR:
+        case opcode::XORI:
+            return InstructionCategory::LOGICAL;
+
+        case opcode::LDW:
+        case opcode::STW:
+            return InstructionCategory::MEMORY_ACCESS;
+
+        case opcode::BZ:
+        case opcode::BEQ:
+        case opcode::JR:
+        case opcode::HALT:
+            return InstructionCategory::CONTROL_FLOW;
+
+        default:
+            throw std::invalid_argument("Invalid opcode for instruction category");
     }
 }
 // Control Word Bit Positions
