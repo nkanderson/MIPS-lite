@@ -14,8 +14,8 @@ Expected stats:
 1 control flow ops
 
 Without forwarding:
-- 13 total cycles
-- 0 stalls
+- 14 total cycles
+- 1 stalls
 
 With forwarding:
 - 13 total cycles
