@@ -97,6 +97,10 @@ void resetSimulator(std::unique_ptr<FunctionalSimulator>& sim, RegisterFile& rf,
  *   
  */
 TEST_F(IntegrationTest, BZNotTaken) {
+    if(!sim_no_forward || !sim_with_forward) {
+        ADD_FAILURE() << "Simulator instances not initialized properly";
+        FAIL();
+    }   
     std::vector<uint32_t> program = {
         0x04010004,  // ADDI R1 R0 4
         0x38200002,  // BZ R1 2 
@@ -153,6 +157,10 @@ TEST_F(IntegrationTest, BZNotTaken) {
  * Stalls = 0    
  */
 TEST_F(IntegrationTest, BZTaken) {
+    if(!sim_no_forward || !sim_with_forward) {
+        ADD_FAILURE() << "Simulator instances not initialized properly";
+        FAIL();
+    }
     std::vector<uint32_t> program = {
         0x00000800,  // ADD R1 R0 R0
         0x38200002,  // BZ R1 2 
