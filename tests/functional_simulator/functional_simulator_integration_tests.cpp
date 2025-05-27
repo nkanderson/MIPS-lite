@@ -144,9 +144,13 @@ TEST_F(IntegrationTest, BZNotTaken) {
  * @brief Test branch taken with both forwarding and no forwarding. 
  * Results: 
  * - No forwarding
-
+ * R1 = 10 , PC = 16
+ * Cycles = 12
+ * Stalls = 2
  * - Forwarding
- *    
+ * R1 = 10 , PC = 16
+ * Cycles = 10
+ * Stalls = 0    
  */
 TEST_F(IntegrationTest, BZTaken) {
     std::vector<uint32_t> program = {
@@ -172,6 +176,12 @@ TEST_F(IntegrationTest, BZTaken) {
     EXPECT_EQ(rf.read(1), 10); 
     EXPECT_EQ(stats.getClockCycles(), 12); 
     EXPECT_EQ(stats.getStalls(), 2); 
+    // Add check for stats instruction categories
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 2);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 2);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 0);
+
     
     // Reset and test with forwarding
     resetSimulator(sim_with_forward, rf, stats, mem, true);
@@ -189,5 +199,10 @@ TEST_F(IntegrationTest, BZTaken) {
     EXPECT_EQ(rf.read(1), 10);  // Same final result
     EXPECT_EQ(stats.getClockCycles(), 10);  // Expected cycle count with forwarding
     EXPECT_EQ(stats.getStalls(), 0);  // No stalls with forwarding
+    // Add check for stats instruction categories
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 2);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 2);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 0);
 
 }
