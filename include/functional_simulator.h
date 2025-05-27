@@ -93,11 +93,13 @@ class FunctionalSimulator {
      */
     bool isForwardingEnabled() const;
 
+    bool isProgramFinished() const { return program_finished; }
+
     /**
-     * @brief Get the current stall count.
-     * @return Number of remaining stall cycles.
+     * @brief Get the stall signal.
+     * @return True if the pipeline is stalled, false otherwise.
      */
-    uint8_t getStall() const;
+    bool getStall() const;
 
     bool isHalted() const { return halt_pipeline; }
 
@@ -120,12 +122,6 @@ class FunctionalSimulator {
      * @param new_pc New value for the PC.
      */
     void setPC(uint32_t new_pc);
-
-    /**
-     * @brief Set the number of stall cycles.
-     * @param cycles Number of stall cycles.
-     */
-    void setStall(uint8_t cycles);
 
     // Pipeline stage methods
 
@@ -226,8 +222,10 @@ class FunctionalSimulator {
     /// Add flag for halt instruction
     bool halt_pipeline = false;
 
-    /// Countdown of the required stall cycles
-    uint8_t stall;
+    /// Stall signal
+    bool stall = false;
+
+    bool program_finished = false; 
 
     /**
      * @brief Helper method to check if an instruction writes to a register.
@@ -247,16 +245,24 @@ class FunctionalSimulator {
     uint32_t readRegisterValue(uint8_t reg_num);
 
     /* @brief Detects hazards in the pipeline and returns the number of stall cycles needed.
- * 
- * This method checks for data hazards between the stages of the pipeline. If a hazard is detected,
- * it returns the number of stall cycles required to resolve it. If no hazards are detected, it
- * returns 0.
- *
- * @return Number of stall cycles needed to resolve hazards, or 0 if no hazards are detected.
- */
-    int detectStalls(void);
-    
+    * 
+    * This method checks for data hazards between the stages of the pipeline. If a hazard is detected,
+    * it returns the number of stall cycles required to resolve it. If no hazards are detected, it
+    * returns 0.
+    *
+    * @return Number of stall cycles needed to resolve hazards, or 0 if no hazards are detected.
+    */
+    bool detectStalls(void);
+
+    // determines if the instruction needs the Rt register value as a source operand
     bool needsRtValue(const Instruction* instr) const;
+
+    /** check for program completion
+     * @brief Check if the program has finished executing. If so it will set 
+     * program_finished to true 
+     */
+    void checkProgramCompletion(void);
+
 
 
 

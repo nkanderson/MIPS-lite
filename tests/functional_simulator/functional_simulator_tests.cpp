@@ -56,7 +56,6 @@ class FunctionalSimulatorTest : public ::testing::Test {
 
 TEST_F(FunctionalSimulatorTest, Initialization) {
     EXPECT_EQ(sim->getPC(), 0);
-    EXPECT_EQ(sim->getStall(), 0);
     EXPECT_FALSE(sim->isForwardingEnabled());
 }
 
@@ -69,10 +68,7 @@ TEST_F(FunctionalSimulatorTest, ForwardingFlag) {
 // Test setters and getters
 TEST_F(FunctionalSimulatorTest, SettersAndGetters) {
     sim->setPC(0x00400020);
-    sim->setStall(3);
-
     EXPECT_EQ(sim->getPC(), 0x00400020);
-    EXPECT_EQ(sim->getStall(), 3);
 }
 
 // Test pipeline stages initially empty
@@ -89,22 +85,6 @@ TEST_F(FunctionalSimulatorTest, BoundsChecking) {
     EXPECT_THROW(sim->isStageEmpty(5), std::out_of_range);
     EXPECT_THROW(sim->getPipelineStage(-1), std::out_of_range);
     EXPECT_THROW(sim->getPipelineStage(5), std::out_of_range);
-}
-
-// Test stall counter decrements
-TEST_F(FunctionalSimulatorTest, StallDecrement) {
-    sim->setStall(2);
-    EXPECT_EQ(sim->getStall(), 2);
-
-    sim->advancePipeline();
-    EXPECT_EQ(sim->getStall(), 1);
-
-    sim->advancePipeline();
-    EXPECT_EQ(sim->getStall(), 0);
-
-    // Should not go below zero
-    sim->advancePipeline();
-    EXPECT_EQ(sim->getStall(), 0);
 }
 
 // Test that getPipelineStage returns nullptr for empty stages

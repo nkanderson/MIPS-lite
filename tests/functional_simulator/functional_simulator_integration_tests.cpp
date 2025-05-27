@@ -41,41 +41,6 @@ class IntegrationTest : public ::testing::Test {
 // ---------------------------
 
 /**
- * @brief Run simulator until HALT instruction reaches writeback or max cycles
- * Uses the new cycle() method which handles all pipeline stages automatically
- */
-int runUntilHalt(FunctionalSimulator* sim, int max_cycles = 1000) {
-    int cycle_count = 0;
-    
-    while (cycle_count < max_cycles) {
-        // Check if HALT has reached writeback stage
-        const PipelineStageData* wb_stage = sim->getPipelineStage(FunctionalSimulator::WRITEBACK);
-        if (wb_stage && wb_stage->instruction && 
-            wb_stage->instruction->getOpcode() == mips_lite::opcode::HALT) {
-            break;
-        }
-        
-        // Check if pipeline is completely empty (all instructions completed)
-        bool pipeline_empty = true;
-        for (int i = 0; i < sim->getNumStages(); ++i) {
-            if (!sim->isStageEmpty(i)) {
-                pipeline_empty = false;
-                break;
-            }
-        }
-        if (pipeline_empty && sim->isHalted()) {
-            break;
-        }
-        
-        // Use the new cycle() method
-        sim->cycle();
-        cycle_count++;
-    }
-    
-    return cycle_count;
-}
-
-/**
  * @brief Set up mocking for an array of hex-encoded instructions.
  * Does not require calls to be made in order.
  */
@@ -143,22 +108,86 @@ TEST_F(IntegrationTest, BZNotTaken) {
     setupMockMemory(mem, program);
 
     // Test without forwarding
-    int cycles_no_forward = runUntilHalt(sim_no_forward.get());
+    while(!sim_no_forward->isProgramFinished()){
+        sim_no_forward->cycle();
+
+        if(stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
+    }
     
-    EXPECT_EQ(rf.read(1), 20);  // Same final result
-    EXPECT_EQ(cycles_no_forward, 12); 
-    EXPECT_EQ(stats.getStalls(), 4); // Stalls without forwarding
+    EXPECT_EQ(rf.read(1), 20); 
+    EXPECT_EQ(stats.getClockCycles(), 13); 
+    EXPECT_EQ(stats.getStalls(), 4); 
     
     // Reset and test with forwarding
     resetSimulator(sim_with_forward, rf, stats, mem, true);
     setupMockMemory(mem, program);  // Re-setup mock for new simulator instance
     
-    int cycles_with_forward = runUntilHalt(sim_with_forward.get());
-    
+    while(!sim_with_forward->isProgramFinished()){
+        sim_with_forward->cycle();
+
+        if(stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
+    }
     
     EXPECT_EQ(rf.read(1), 20);  // Same final result
-    EXPECT_EQ(cycles_with_forward, 8);  // Expected cycle count with forwarding
+    EXPECT_EQ(stats.getClockCycles(), 9);  // Expected cycle count with forwarding
     EXPECT_EQ(stats.getStalls(), 0);  // No stalls with forwarding
     
 }
 
+/**
+ * @brief Test branch taken with both forwarding and no forwarding. 
+ * Results: 
+ * - No forwarding
+
+ * - Forwarding
+ *    
+ */
+TEST_F(IntegrationTest, BZTaken) {
+    std::vector<uint32_t> program = {
+        0x00000800,  // ADD R1 R0 R0
+        0x38200002,  // BZ R1 2 
+        0x04210006,  // ADDI R1 R1 6 <- Should get skipped
+        0x0421000A,  // ADDI R1 R1 10 
+        0x44000000   // HALT 
+    };
+
+    setupMockMemory(mem, program);
+
+    // Test without forwarding
+    while(!sim_no_forward->isProgramFinished()){
+        sim_no_forward->cycle();
+
+        if(stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
+    }
+    
+    EXPECT_EQ(rf.read(1), 10); 
+    EXPECT_EQ(stats.getClockCycles(), 12); 
+    EXPECT_EQ(stats.getStalls(), 2); 
+    
+    // Reset and test with forwarding
+    resetSimulator(sim_with_forward, rf, stats, mem, true);
+    setupMockMemory(mem, program);  // Re-setup mock for new simulator instance
+    
+    while(!sim_with_forward->isProgramFinished()){
+        sim_with_forward->cycle();
+
+        if(stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
+    }
+    
+    EXPECT_EQ(rf.read(1), 10);  // Same final result
+    EXPECT_EQ(stats.getClockCycles(), 10);  // Expected cycle count with forwarding
+    EXPECT_EQ(stats.getStalls(), 0);  // No stalls with forwarding
+
+}
