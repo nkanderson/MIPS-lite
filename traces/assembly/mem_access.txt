@@ -1,0 +1,27 @@
+ADDI R1 R0 1000      
+ADDI R2 R0 42    
+STW R2 R1 0        
+ADDI R2 R0 0        
+LDW R2 R1 0      
+HALT
+
+Expected stats:
+6 total instructions executed
+3 arithmetic ops
+2 memory ops
+1 control flow ops
+
+Without forwarding:
+- 12 total cycles
+- 3 stalls
+
+With forwarding:
+- 9 total cycles
+- 0 stalls
+
+PC at 0x20 (32, or the 7th instruction)
+
+Changed registers and their contents
+R1 = 0x000003E8  ; address base
+R2 = 42          ; final value after LDW
+Mem[0x3E8] = 42  ; stored after STW
