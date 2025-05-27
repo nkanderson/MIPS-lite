@@ -2,6 +2,7 @@
 
 #include <sys/types.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 
@@ -55,41 +56,36 @@ bool FunctionalSimulator::isStageEmpty(int stage) const {
 }
 
 void FunctionalSimulator::instructionFetch() {
-    if (!isStageEmpty(PipelineStage::FETCH) || halt_pipeline) {
-        // Fetch stage already has an instruction, do nothing
-        // or if halt_pipeline is true, we should not fetch a new instruction
-        return;
+    auto& fetch_data = pipeline[PipelineStage::FETCH];
+
+    if (fetch_data || halt_pipeline) {
+        return;  // Fetch stage already has an instruciton, do nothing
+                 // pipeline is likely stalled or halt instruction encountered
     }
+
     uint32_t instruction_word = memory_parser->readInstruction(pc);
     if (mips_lite::is_halt_instruction(instruction_word)) {
-        // If the instruction is HALT, set the halt flag
         halt_pipeline = true;
-        // Still create instruction and put in pipeline to finish instructions already
-        // in the pipeline
     }
-    // Object creation
+    // Create next instruction for pipeline
     auto instruction = std::make_unique<Instruction>(instruction_word);
-    auto fetch_data = std::make_unique<PipelineStageData>();
-    fetch_data->instruction = std::move(instruction);
-    fetch_data->pc = pc;  // Store the current PC in the fetch stage data
-    // Place in pipeline
-    pipeline[PipelineStage::FETCH] = std::move(fetch_data);
-    // Increment PC for next instruction
+    auto stage_data = std::make_unique<PipelineStageData>();
+    stage_data->instruction = std::move(instruction);
+    stage_data->pc = pc;
+
+    fetch_data = std::move(stage_data);
+
     if (!halt_pipeline) {
         pc += 4;
     }
 }
 
 void FunctionalSimulator::instructionDecode() {
-    // Operation: Decode instruction and access register file to read the register sources
+    auto& id_data = pipeline[PipelineStage::DECODE];
 
-    PipelineStageData* id_data = pipeline[PipelineStage::DECODE].get();
-
-    if (id_data == nullptr || stall) {
-        // No instruction to decode
-        return;
+    if (!id_data || stall) {
+        return;  // Nothing to decode, or pipeline is stalled
     }
-    // Track category of instructions
     // TODO: Does this make sense to keep here or should it be in another place?
     mips_lite::InstructionCategory category =
         mips_lite::get_instruction_category(id_data->instruction->getOpcode());
@@ -98,33 +94,34 @@ void FunctionalSimulator::instructionDecode() {
     uint8_t rs = id_data->instruction->getRs();
     uint8_t rt = id_data->instruction->getRt();
 
+    // Source register
     id_data->rs_value = readRegisterValue(rs);
-
-    // Determine register Destination & optional second source register
-    if (id_data->instruction->hasRd()) {
-        id_data->dest_reg = id_data->instruction->getRd();
-        // R-type instruction has two source registers, get second source register
+    // (Optional) Second source register
+    if (needsRtValue(id_data->instruction.get())) {
         id_data->rt_value = readRegisterValue(rt);
-    } else if (!id_data->instruction->hasRd() &&
-               isRegisterWriteInstruction(id_data->instruction.get())) {
-        // Destination register is rt
-        id_data->dest_reg = id_data->instruction->getRt();
-    } else {
-        // No destination register
-        id_data->dest_reg = std::nullopt;
-        if (id_data->instruction->getOpcode() == mips_lite::opcode::BEQ) {
-            // BEQ has two source registers
-            id_data->rt_value = readRegisterValue(rt);
+    }
+
+    // Determine destination register, if writeback is needed
+    bool writeback_needed = isRegisterWriteInstruction(id_data->instruction.get());
+
+    if (writeback_needed) {
+        if (id_data->instruction->hasRd()) {
+            // R-type instruction (always has Rd)
+            id_data->dest_reg = id_data->instruction->getRd();
+        } else {
+            // I-type instruction that writes to a register (e.g., ADDI, LDW)
+            id_data->dest_reg = id_data->instruction->getRt();
         }
+    } else {
+        id_data->dest_reg = std::nullopt;  // No destination register
     }
 }
 
 void FunctionalSimulator::execute() {
-    if (isStageEmpty(PipelineStage::EXECUTE)) {
-        // No instruction to execute
-        return;
+    auto& ex_data = pipeline[PipelineStage::EXECUTE];
+    if (!ex_data) {
+        return;  // Nothing to execute, NOP or Bubble inserted
     }
-    PipelineStageData* ex_data = pipeline[PipelineStage::EXECUTE].get();
 
     switch (ex_data->instruction->getOpcode()) {
         // Arithmetic Operations
@@ -229,10 +226,10 @@ void FunctionalSimulator::execute() {
             ex_data->alu_result = pc;
             if (!halt_pipeline) {
                 halt_pipeline = true;
-                std::cerr
-                    << "Warning: HALT instruction encountered in EXE stage, this should've been "
-                       "detected in the FETCH stage and set the halt_pipeline flag to true."
-                    << std::endl;
+                std::cerr << "Warning: HALT instruction encountered in EXE stage, this should've "
+                             "been "
+                             "detected in the FETCH stage and set the halt_pipeline flag to true."
+                          << std::endl;
             }
             break;
 
@@ -289,11 +286,12 @@ void FunctionalSimulator::memory() {
  * @brief Writes the ALU result to the destination register in the WB (Write Back) stage.
  *
  * This method checks the WRITEBACK stage of the pipeline for a valid instruction. If the
- * instruction has a destination register, the ALU result is written to the corresponding register
- * in the register file. It also updates the statistics by tracking the modified register.
+ * instruction has a destination register, the ALU result is written to the corresponding
+ * register in the register file. It also updates the statistics by tracking the modified
+ * register.
  *
- * If the WB stage is empty, as may be the case when a stall cycle has been inserted, no action is
- * performed.
+ * If the WB stage is empty, as may be the case when a stall cycle has been inserted, no action
+ * is performed.
  */
 void FunctionalSimulator::writeBack() {
     // Get reference to PipelineStageData pointer in WB stage
@@ -350,7 +348,6 @@ void FunctionalSimulator::advancePipeline() {
 
 void FunctionalSimulator::cycle() {
     // Execute stages in reverse order since writeback should happen first
-    // TODO: Might need to add other control logic here
     if (program_finished) {
         return;
     }
@@ -359,16 +356,22 @@ void FunctionalSimulator::cycle() {
     memory();
     execute();
 
-    // Check for branch taken, if so, update PC and reset IF & ID stages
+    // Check for branch taken which would get set in EXE stage
     if (isBranchTaken()) {
+        // Get reference to the EXE stage data
+        auto& ex_data = pipeline[PipelineStage::EXECUTE];
+        if (!ex_data) {
+            throw std::runtime_error(
+                "Branch taken but EXE stage is empty. This should never happen.");
+        }
         // Update PC to the branch target
-        setPC(pipeline[PipelineStage::EXECUTE]->alu_result);
-        stall = false;  // Reset stall signal
+        setPC(ex_data->alu_result);
         // Flush IF and ID stages
         pipeline[PipelineStage::FETCH].reset();
         pipeline[PipelineStage::DECODE].reset();
-        // TODO: Do we need to track branch penalties? I couldn't find any mention in project specs
-        // Reset branch taken flag
+        // TODO: Do we need to track branch penalties? I couldn't find any mention in project
+        // specs Reset branch taken flag
+        stall = false;  // Reset control signals
         branch_taken = false;
         advancePipeline();
         return;
@@ -381,7 +384,6 @@ void FunctionalSimulator::cycle() {
     instructionDecode();
     instructionFetch();
     advancePipeline();
-    // Check if the program has finished executing
     checkProgramCompletion();
 }
 
@@ -410,7 +412,8 @@ uint32_t FunctionalSimulator::readRegisterValue(uint8_t reg_num) {
     }  // And never has hazards
     if (stall) {
         throw std::runtime_error(
-            "Stall detected in ID stage but wasn't properly handled by control logic. Should never "
+            "Stall detected in ID stage but wasn't properly handled by control logic. Should "
+            "never "
             "attempt to read during a stall");
     }
     // Check EXE stages for forwarding if necessary
@@ -480,8 +483,8 @@ bool FunctionalSimulator::detectStalls(void) {
                     if (ex_data->instruction &&
                         ex_data->instruction->getOpcode() == mips_lite::opcode::LDW) {
                         // Load-use hazard with forwarding
-                        return true;  // Forwarding can't resolve this, so return true until load is
-                                      // done in MEM stage
+                        return true;  // Forwarding can't resolve this, so return true until
+                                      // load is done in MEM stage
                     }
                     return false;  // No stalls needed with forwarding
                 } else {
