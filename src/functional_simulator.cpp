@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <optional>
 
+#include "iostream"
 #include "memory_interface.h"
 #include "mips_instruction.h"
 #include "mips_lite_defs.h"
@@ -13,12 +14,25 @@
 
 FunctionalSimulator::FunctionalSimulator(RegisterFile* rf, Stats* st, IMemoryParser* mem,
                                          bool enable_forwarding)
-    : pc(0),
-      register_file(rf),
-      stats(st),
-      memory_parser(mem),
-      forward(enable_forwarding),
-      stall(0) {}
+    : pc(0), forward(enable_forwarding) {
+    // Validate dependencies
+    if (!rf) {
+        throw std::invalid_argument("RegisterFile instance cannot be null");
+    }
+    if (!st) {
+        throw std::invalid_argument("Stats instance cannot be null");
+    }
+    if (!mem) {
+        throw std::invalid_argument("MemoryParser instance cannot be null");
+    }
+    register_file = rf;
+    stats = st;
+    memory_parser = mem;
+
+    for (auto& stage : pipeline) {
+        stage = nullptr;  // Initialize all pipeline stages to nullptr
+    }
+}
 
 uint32_t FunctionalSimulator::getPC() const { return pc; }
 
@@ -41,19 +55,19 @@ bool FunctionalSimulator::isStageEmpty(int stage) const {
 }
 
 void FunctionalSimulator::instructionFetch() {
-    if(!isStageEmpty(PipelineStage::FETCH) || halt_pipeline) {
+    if (!isStageEmpty(PipelineStage::FETCH) || halt_pipeline) {
         // Fetch stage already has an instruction, do nothing
         // or if halt_pipeline is true, we should not fetch a new instruction
         return;
     }
     uint32_t instruction_word = memory_parser->readInstruction(pc);
-    if(mips_lite::is_halt_instruction(instruction_word)) {
+    if (mips_lite::is_halt_instruction(instruction_word)) {
         // If the instruction is HALT, set the halt flag
         halt_pipeline = true;
         // Still create instruction and put in pipeline to finish instructions already
         // in the pipeline
     }
-    //Object creation
+    // Object creation
     auto instruction = std::make_unique<Instruction>(instruction_word);
     auto fetch_data = std::make_unique<PipelineStageData>();
     fetch_data->instruction = std::move(instruction);
@@ -61,8 +75,8 @@ void FunctionalSimulator::instructionFetch() {
     // Place in pipeline
     pipeline[PipelineStage::FETCH] = std::move(fetch_data);
     // Increment PC for next instruction
-    if(!halt_pipeline) {
-        pc += 4;  
+    if (!halt_pipeline) {
+        pc += 4;
     }
 }
 
@@ -76,8 +90,9 @@ void FunctionalSimulator::instructionDecode() {
         return;
     }
     // Track category of instructions
-    // TODO: Does this make sesne to keep here or should it be in another place? 
-    mips_lite::InstructionCategory category = mips_lite::get_instruction_category(id_data->instruction->getOpcode());
+    // TODO: Does this make sense to keep here or should it be in another place?
+    mips_lite::InstructionCategory category =
+        mips_lite::get_instruction_category(id_data->instruction->getOpcode());
     stats->incrementCategory(category);
 
     uint8_t rs = id_data->instruction->getRs();
@@ -212,6 +227,13 @@ void FunctionalSimulator::execute() {
             // This might require adding a 'halted' flag to your FunctionalSimulator class
             // For now, we'll just pass the current PC
             ex_data->alu_result = pc;
+            if (!halt_pipeline) {
+                halt_pipeline = true;
+                std::cerr
+                    << "Warning: HALT instruction encountered in EXE stage, this should've been "
+                       "detected in the FETCH stage and set the halt_pipeline flag to true."
+                    << std::endl;
+            }
             break;
 
         default:
@@ -308,25 +330,28 @@ void FunctionalSimulator::writeBack() {
 void FunctionalSimulator::advancePipeline() {
     // Release writeback stage
     pipeline[PipelineStage::WRITEBACK].reset();  // Smart pointer will delete the object
-    pipeline[PipelineStage::WRITEBACK] = std::move(pipeline[PipelineStage::MEMORY]);  // Move MEM to WB
-    pipeline[PipelineStage::MEMORY] = std::move(pipeline[PipelineStage::EXECUTE]);  // Move EXE to MEM
+    pipeline[PipelineStage::WRITEBACK] =
+        std::move(pipeline[PipelineStage::MEMORY]);  // Move MEM to WB
+    pipeline[PipelineStage::MEMORY] =
+        std::move(pipeline[PipelineStage::EXECUTE]);  // Move EXE to MEM
     if (stall) {
         stats->incrementStalls();
         // bubble insert
         pipeline[PipelineStage::EXECUTE].reset();
         // Do not advance ID or IF stages
-    }
-    else {
-        pipeline[PipelineStage::EXECUTE] = std::move(pipeline[PipelineStage::DECODE]);  // Move ID to EXE
-        pipeline[PipelineStage::DECODE] = std::move(pipeline[PipelineStage::FETCH]);  // Move IF to ID
+    } else {
+        pipeline[PipelineStage::EXECUTE] =
+            std::move(pipeline[PipelineStage::DECODE]);  // Move ID to EXE
+        pipeline[PipelineStage::DECODE] =
+            std::move(pipeline[PipelineStage::FETCH]);  // Move IF to ID
         // Note: IF is now empty, so we can fetch a new instruction next cycle
-    }  
+    }
 }
 
 void FunctionalSimulator::cycle() {
     // Execute stages in reverse order since writeback should happen first
     // TODO: Might need to add other control logic here
-    if(program_finished) {
+    if (program_finished) {
         return;
     }
     stats->incrementClockCycles();
@@ -335,7 +360,7 @@ void FunctionalSimulator::cycle() {
     execute();
 
     // Check for branch taken, if so, update PC and reset IF & ID stages
-    if(isBranchTaken()) {
+    if (isBranchTaken()) {
         // Update PC to the branch target
         setPC(pipeline[PipelineStage::EXECUTE]->alu_result);
         stall = false;  // Reset stall signal
@@ -345,13 +370,13 @@ void FunctionalSimulator::cycle() {
         // TODO: Do we need to track branch penalties? I couldn't find any mention in project specs
         // Reset branch taken flag
         branch_taken = false;
-        advancePipeline();  
-        return; 
+        advancePipeline();
+        return;
     }
     // If no branch taken, continue with normal pipeline operation
     // Check for stalls and set stall signal
     // if stall is set, we will not advance IF or ID stages
-    detectStalls() ? stall = true : stall = false; 
+    detectStalls() ? stall = true : stall = false;
 
     instructionDecode();
     instructionFetch();
@@ -359,7 +384,6 @@ void FunctionalSimulator::cycle() {
     // Check if the program has finished executing
     checkProgramCompletion();
 }
-
 
 bool FunctionalSimulator::isRegisterWriteInstruction(const Instruction* instr) const {
     if (instr == nullptr) {
@@ -383,14 +407,14 @@ bool FunctionalSimulator::isRegisterWriteInstruction(const Instruction* instr) c
 uint32_t FunctionalSimulator::readRegisterValue(uint8_t reg_num) {
     if (reg_num == 0) {
         return 0;  // $0 register always returns 0
-    }              // And never has hazards
+    }  // And never has hazards
     if (stall) {
         throw std::runtime_error(
             "Stall detected in ID stage but wasn't properly handled by control logic. Should never "
             "attempt to read during a stall");
     }
     // Check EXE stages for forwarding if necessary
-    if(!isStageEmpty(PipelineStage::EXECUTE)){
+    if (!isStageEmpty(PipelineStage::EXECUTE)) {
         PipelineStageData* ex_data = pipeline[PipelineStage::EXECUTE].get();
         if (ex_data->dest_reg.has_value() && ex_data->dest_reg.value() == reg_num) {
             // Hazard detected, return the ALU result from EX stage
@@ -398,7 +422,7 @@ uint32_t FunctionalSimulator::readRegisterValue(uint8_t reg_num) {
         }
     }
     // Check MEM stage for forwarding if necessary
-    if(!isStageEmpty(PipelineStage::MEMORY)){
+    if (!isStageEmpty(PipelineStage::MEMORY)) {
         PipelineStageData* mem_data = pipeline[PipelineStage::MEMORY].get();
         if (mem_data->dest_reg.has_value() && mem_data->dest_reg.value() == reg_num) {
             // Hazard detected, return the ALU result from MEM stage
@@ -413,10 +437,10 @@ uint32_t FunctionalSimulator::readRegisterValue(uint8_t reg_num) {
  * @brief Detects hazards in the pipeline
  * Stall rules:
  * - EX stage hazard: 2 stalls without forwarding, 0 with forwarding
- * - MEM stage hazard: 1 stall without forwarding, 0 with forwarding  
+ * - MEM stage hazard: 1 stall without forwarding, 0 with forwarding
  * - Load-use hazard: 2 stalls without forwarding, 1 stall with forwarding (special case)
  *
- * @return returns ture if a hazard is detected, false otherwise. Takes into account forwarding. 
+ * @return returns ture if a hazard is detected, false otherwise. Takes into account forwarding.
  * @note The return number will be > 0 for as long as there is a hazard detected.
  */
 bool FunctionalSimulator::detectStalls(void) {
@@ -443,23 +467,25 @@ bool FunctionalSimulator::detectStalls(void) {
     // Check for hazards with the EX stage
     if (!isStageEmpty(PipelineStage::EXECUTE)) {
         const auto& ex_data = pipeline[PipelineStage::EXECUTE];
-        
+
         if (ex_data->dest_reg.has_value()) {
             uint8_t dest_reg = ex_data->dest_reg.value();
-            
+
             // Check if any source register causes a hazard
             bool rs_hazard = causesHazard(rs, dest_reg);
             bool rt_hazard = needs_rt && causesHazard(rt, dest_reg);
-            
+
             if (rs_hazard || rt_hazard) {
-                if(forward) {
-                    if(ex_data->instruction && ex_data->instruction->getOpcode() == mips_lite::opcode::LDW) {
+                if (forward) {
+                    if (ex_data->instruction &&
+                        ex_data->instruction->getOpcode() == mips_lite::opcode::LDW) {
                         // Load-use hazard with forwarding
-                        return true;  // Forwarding can't resolve this, so return true until load is done in MEM stage
+                        return true;  // Forwarding can't resolve this, so return true until load is
+                                      // done in MEM stage
                     }
-                    return false; // No stalls needed with forwarding
+                    return false;  // No stalls needed with forwarding
                 } else {
-                    return true; // EX stage hazard without forwarding
+                    return true;  // EX stage hazard without forwarding
                 }
             }
         }
@@ -468,20 +494,20 @@ bool FunctionalSimulator::detectStalls(void) {
     // Check for hazards with the MEM stage
     if (!isStageEmpty(PipelineStage::MEMORY)) {
         const auto& mem_data = pipeline[PipelineStage::MEMORY];
-        
+
         if (mem_data->dest_reg.has_value()) {
             uint8_t dest_reg = mem_data->dest_reg.value();
-            
+
             // Check if any source register causes a hazard
             bool rs_hazard = causesHazard(rs, dest_reg);
             bool rt_hazard = needs_rt && causesHazard(rt, dest_reg);
-            
+
             if (rs_hazard || rt_hazard) {
-                return !forward; 
+                return !forward;
             }
         }
     }
-    return 0; // No hazards detected
+    return 0;  // No hazards detected
 }
 
 /**
@@ -491,14 +517,14 @@ bool FunctionalSimulator::detectStalls(void) {
  */
 bool FunctionalSimulator::needsRtValue(const Instruction* instr) const {
     if (!instr) return false;
-    
+
     uint8_t opcode = instr->getOpcode();
-    
+
     // R-type instructions use both Rs and Rt as source operands
     if (instr->getInstructionType() == mips_lite::InstructionType::R_TYPE) {
         return true;
     }
-    
+
     // I-type instructions that use Rt as source operand
     switch (opcode) {
         case mips_lite::opcode::BEQ:  // BEQ compares Rs and Rt
@@ -510,7 +536,7 @@ bool FunctionalSimulator::needsRtValue(const Instruction* instr) const {
 }
 
 void FunctionalSimulator::checkProgramCompletion() {
-    if(!halt_pipeline) {
+    if (!halt_pipeline) {
         return;  // Halt instruction not encountered, program not finished
     }
     // If halt instruction was encountered, check if the pipeline is empty
