@@ -1,26 +1,23 @@
 ADD R1 R0 R0
 BZ R1 2
-ADDI R1 R0 6
-ADDI R1 R0 10
+ADDI R1 R1 6
+ADDI R1 R1 10
 HALT
 
 Expected stats:
-5 total instructions
-3 arithmetic ops
+4 total instructions
+2 arithmetic ops
 2 control flow ops
-6 total cycles with NO forwarding
-- Need to confirm this, assumes:
-  - BZ has 1 stall
-  - New address is known at end of BZ EX stage
-  - HALT is fetched in same cycle as BZ memory
-1 stall total
 
-5 total cycles with forwarding
-- Need to confirm this, assumes:
-  - BZ has no stalls
-  - New address is known at end of BZ EX stage
-  - HALT is fetched in same cycle as BZ memory
-No stalls total
+Without forwarding:
+- 12 total cycles
+- 2 stalls
+- 2 cycle branch penalty
+
+With forwarding:
+- 10 total cycles
+- 0 stalls
+- 2 cycle branch penalty
 
 PC at 0x10 (16, or the 5th instruction)
 
