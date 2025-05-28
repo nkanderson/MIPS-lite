@@ -76,10 +76,10 @@ ISAlist = {
     "LDW": 0b001100,
     "STW": 0b001101,
     # Control Flow Instructions
-    "BZ": 0b001110,  # Usess 3/4 sections of the instruction
+    "BZ": 0b001110,     # Uses 3/4 sections of the instruction
     "BEQ": 0b001111,
-    "JR": 0b010000,  # Uses 2/4 sections of the instruction
-    "HALT": 0b010001,  # Uses 1/4 sections of the instruction
+    "JR": 0b010000,     # Uses 2/4 sections of the instruction
+    "HALT": 0b010001,   # Uses 1/4 sections of the instruction
 }
 
 
@@ -203,15 +203,33 @@ def main():
             index = [0, 2, 3, 1]
             counts.incArithmeticCount()
         elif check == TYPE.I_TYPE:
-            # If the instruction is one of the special I-type
-            # instructions that doesn't use all of the 4 fields,
-            # append 0s till a length of 4 is acheived
-            if len(line) != 4:
-                while len(line) < 4:
-                    line.append("0")
-
-            # Index Concatnation: [0]/[2]/[1]/[3]
-            index = [0, 2, 1, 3]
+            # Handle normal I_TYPE instructions
+            if (not ((line[0] == "BZ") | (line[0] == "BEQ") | (line[0] == "JR") | (line[0] == "HALT"))):
+                # Index Concatnation: [0]/[2]/[1]/[3]
+                index = [0, 2, 1, 3]
+                
+            # Handle special I_TYPE instructions (control flow instructions)
+            else:
+                # Special cases for control flow instructions
+                # (0)BZ     (1)RS       (2)(Unused)     (3)IMM      (3/4 Fields used)
+                # (0)BEQ    (1)RS       (2)RT           (3)IMM      (4/4 Fields used)
+                # (0)JR     (1)RS       (2)(Unused)     (3)(Unused) (2/4 Fields used)
+                # (0)HALT   (1)(Unused) (2)(Unused)     (3)(Unused) (1/3 Fields used)
+                # All control signals use the same layout in instruction format
+                
+                # Follows this layout in binary format: Opcode - RS - RT - IMM
+                        
+                # Insert 0s where appropriate
+                # Note: BEQ uses all 4 fields, so no need to insert 0s
+                match (line[0]):
+                    case "BZ": 
+                        line.insert(2, "0")         
+                    case "JR":
+                        line.extend(["0", "0"])
+                    case "HALT":
+                        line.extend(["0", "0", "0"])
+                index = [0, 1, 2, 3]
+                    
         else:
             print("Error: Instruction is not a valid instruction -> " + line[0])
             sys.exit(-1)
