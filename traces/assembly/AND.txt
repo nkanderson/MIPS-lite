@@ -17,8 +17,8 @@ Expected stats:
 1 control flow ops
 
 Without forwarding:
-- 15 total cycles
-- 2 stalls
+- 14 total cycles
+- 1 stalls
 
 With forwarding:
 - 13 total cycles
@@ -33,6 +33,6 @@ R4  = -1
 R14 = 0xFFFFC300
 R15 = 0x00000000
 R16 = 0xFFFFFF00
-R17 = 0x00000069
+R17 = 0x000000C9
 R18 = 0x00000000
 R19 = 0x00000001

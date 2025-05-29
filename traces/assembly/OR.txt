@@ -16,8 +16,8 @@ Expected stats:
 1 control flow ops
 
 Without forwarding:
-- 16 total cycles
-- 3 stalls
+- 14 total cycles
+- 2 stalls
 
 With forwarding:
 - 13 total cycles
@@ -29,9 +29,9 @@ Changed registers and their contents
 R2 = 0xFFFFFF00
 R3 = 0xFFFFC369
 R4 = 0xFFFFFFFF
-R8  = 0xFFFFFF69
+R8  = 0xFFFFFFC9
 R9  = 0xFFFFFF00
 R10 = 0xFFFFFFFF
 R11 = 0xFFFFC3FF
-R12 = 0xFFFFC369
-R13 = 0xFFFFC369    
+R12 = 0xFFFFC3C9
+R13 = 0xFFFFC3C9    
