@@ -92,7 +92,7 @@ class FunctionalSimulator {
      */
     bool isForwardingEnabled() const;
 
-    bool isProgramFinished() const { return program_finished; }
+    bool isProgramFinished() { return checkProgramCompletion(); }
 
     /**
      * @brief Get the stall signal.
@@ -215,11 +215,10 @@ class FunctionalSimulator {
     IMemoryParser* memory_parser;
 
     // Control signals
-    bool branch_taken = false;      // EXE stage sets this to true if a branch is taken
-    bool forward = false;           // Forwarding enabled or not during construction
-    bool halt_pipeline = false;     // Set to true when fetch stage encounters a halt instruction
-    bool stall = false;             // Set to true when a hazard is detected
-    bool program_finished = false;  // Set to true when the program has finished executing
+    bool branch_taken = false;   // EXE stage sets this to true if a branch is taken
+    bool forward = false;        // Forwarding enabled or not during construction
+    bool halt_pipeline = false;  // Set to true when fetch stage encounters a halt instruction
+    bool stall = false;          // Set to true when a hazard is detected
 
     /**
      * @brief Helper method to check if an instruction writes to a register.
@@ -247,6 +246,11 @@ class FunctionalSimulator {
      */
     bool detectStalls(void);
 
+    // Hazard helper methods
+    bool causesHazard(uint8_t reg_num, uint8_t dest_reg) const;
+    bool checkExecuteStageForHazard(uint8_t rs, uint8_t rt, bool needs_rt) const;
+    bool checkMemoryStageForHazard(uint8_t rs, uint8_t rt, bool needs_rt) const;
+
     // determines if the instruction needs the Rt register value as a source operand
     bool needsRtValue(const Instruction* instr) const;
 
@@ -254,7 +258,7 @@ class FunctionalSimulator {
      * @brief Check if the program has finished executing. If so it will set
      * program_finished to true
      */
-    void checkProgramCompletion(void);
+    bool checkProgramCompletion(void);
 
 #ifdef UNIT_TEST
     // Allow functional simulator tests access to private class member pipeline
