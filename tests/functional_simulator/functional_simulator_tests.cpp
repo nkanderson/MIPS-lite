@@ -113,7 +113,8 @@ TEST_F(FunctionalSimulatorTest, WriteBackWritesToRegisterAndUpdatesStats) {
     auto data = std::make_unique<PipelineStageData>();
     data->alu_result = expected_value;
     data->dest_reg = dest_reg;
-    data->instruction = std::make_unique<Instruction>(0x6789ABCD);
+    data->instruction =
+        std::make_unique<Instruction>(mips_lite::opcode::ADDI << 26);  // Dummy opcode
     sim->getPipeline()[FunctionalSimulator::WRITEBACK] = std::move(data);
 
     sim->writeBack();
@@ -140,7 +141,8 @@ TEST_F(FunctionalSimulatorTest, WriteBackEmptyDestRegReturns) {
     // writing to the register file.
     auto data = std::make_unique<PipelineStageData>();
     data->alu_result = expected_value;
-    data->instruction = std::make_unique<Instruction>(0x6789ABCD);
+    data->instruction =
+        std::make_unique<Instruction>(mips_lite::opcode::ADDI << 26);  // Dummy opcode
     sim->getPipeline()[FunctionalSimulator::WRITEBACK] = std::move(data);
 
     sim->writeBack();
