@@ -74,24 +74,21 @@ void setupMockMemory(MockMemoryParser& mem, const std::vector<uint32_t>& instruc
     auto data_lookup = [&instructions, &data_memory, instruction_base](uint32_t addr) -> uint32_t {
         // If data_memory is provided and not empty, use separate data memory logic
         if (!data_memory.empty()) {
-            // Align address to word boundary by converting word index to byte address
-            uint32_t word_index = addr / 4;
-            uint32_t aligned_addr = word_index << 2;  // word_index * 4
-
-            auto it = data_memory.find(aligned_addr);
+            auto it = data_memory.find(addr);
             if (it != data_memory.end()) {
                 return it->second;
             } else {
                 ADD_FAILURE()
-                    << "Data memory access to uninitialized address: 0x" << std::hex << aligned_addr
+                    << "Data memory access to uninitialized address: 0x" << std::hex << addr
                     << " (original: 0x" << std::hex << addr
                     << "). Please add this address to your data_memory map in the test setup.";
                 throw std::runtime_error("Access to uninitialized data memory");
             }
-        } else {
+        } else {  //[DEFAULT]
             // If data memory is not provided, use instruction memory. This is a fallback, and
             // ensures tests can still read instructions as data if no specific data memory is set
-            // up. Hence, load/stores can still read or write to instruction memory.
+            // up. Hence, load/stores can still read or write to instruction memory as in project
+            // specs.
             size_t index = (addr - instruction_base) / 4;
             if ((addr - instruction_base) % 4 != 0) {
                 ADD_FAILURE() << "Unaligned memory access at address: 0x" << std::hex << addr;
