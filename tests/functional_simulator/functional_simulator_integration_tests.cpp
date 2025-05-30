@@ -27,29 +27,18 @@ class IntegrationTest : public ::testing::Test {
     RegisterFile rf;
     Stats stats;
     NiceMock<MockMemoryParser> mem;
-    std::unique_ptr<FunctionalSimulator> sim;
+    std::unique_ptr<FunctionalSimulator> sim_no_forward;
+    std::unique_ptr<FunctionalSimulator> sim_with_forward;
 
-    void SetUp() override { sim = std::make_unique<FunctionalSimulator>(&rf, &stats, &mem); }
+    void SetUp() override {
+        sim_no_forward = std::make_unique<FunctionalSimulator>(&rf, &stats, &mem, false);
+        sim_with_forward = std::make_unique<FunctionalSimulator>(&rf, &stats, &mem, true);
+    }
 };
 
 // ---------------------------
-// Helper Functions
+// Helper Functions (Updated for new cycle logic)
 // ---------------------------
-
-/**
- * @brief Runs through a single simulator clock cycle.
- * Should be the same sequence of calls as in our main program loop.
- */
-void advancePipeline(FunctionalSimulator* sim) {
-    sim->writeBack(sim->getPipelineStage(4));
-    sim->memory(sim->getPipelineStage(3));
-    sim->execute(sim->getPipelineStage(2));
-    sim->instructionDecode(sim->getPipelineStage(1));
-    // FIXME: Update instructionFetch to accept a pointer (which might be null)
-    sim->instructionFetch(sim->getPipelineStage(0));
-    // FIXME: Create functional simulator clock method
-    sim->clock();
-}
 
 /**
  * @brief Set up mocking for an array of hex-encoded instructions.
@@ -77,91 +66,151 @@ void setupMockMemory(MockMemoryParser& mem, const std::vector<uint32_t>& memory,
     EXPECT_CALL(mem, readMemory(::testing::_)).WillRepeatedly(::testing::Invoke(memory_lookup));
 }
 
+/**
+ * @brief Helper to reset simulator state for multiple test runs
+ */
+void resetSimulator(std::unique_ptr<FunctionalSimulator>& sim, RegisterFile& rf, Stats& stats,
+                    MockMemoryParser& mem, bool enable_forwarding) {
+    rf = RegisterFile();  // Reset register file
+    stats = Stats();      // Reset stats
+    sim = std::make_unique<FunctionalSimulator>(&rf, &stats, &mem, enable_forwarding);
+}
+
 // ---------------------------
-// Test suite
+// Test suite (Updated for new functionality)
 // ---------------------------
 
 /**
- * @brief Example showing required in-order instruction access
- * Seems less likely we'll use this option, but we have it here
- * as an example in case.
+ * @brief Test branch not taken with both forwarding and no forwarding.
+ * Results:
+ * - No forwarding
+ *    R1 = 20 , PC = 16
+ *    Cycles = 13
+ *    Stalls = 4
+ *    Branch Penalty = 0
+ * - Forwarding
+ *    R1 = 20 , PC = 16
+ *    Cycles = 9
+ *    Stalls = 0
+ *    Branch Penalty = 0
+ *
  */
-TEST_F(IntegrationTest, BeqNotTakenInOrderExample) {
-    // This is an alternative to using setupMockMemory, in a case where we want
-    // to test that readInstruction and readMemory are called in a particular order.
-    {
-        // seq ensures calls happen in order. The test will fail if the methods
-        // are called out of the order specified below.
-        InSequence seq;
-
-        // Fetch first instruction: ADDI R1 R0 4
-        EXPECT_CALL(mem, readInstruction(0x0)).WillOnce(Return(0x04010004));
-        // Fetch second instruction: ADDI R2 R0 4
-        EXPECT_CALL(mem, readInstruction(0x4)).WillOnce(Return(0x04020004));
-        // Fetch third instruction: BEQ R1 R2 2
-        EXPECT_CALL(mem, readInstruction(0x4)).WillOnce(Return(0x3c410002));
-        // Fetch fourth instruction: ADDI R1 R0 6
-        EXPECT_CALL(mem, readInstruction(0x4)).WillOnce(Return(0x04010006));
-        // Fetch fifth instruction: ADDI R1 R0 10
-        EXPECT_CALL(mem, readInstruction(0x4)).WillOnce(Return(0x0401000a));
-        // Fetch sixth instruction: HALT
-        EXPECT_CALL(mem, readInstruction(0x4)).WillOnce(Return(0x44000000));
-
-        // Examples for a test that reads memory, not used in BeqNotTaken test
-        // Simulated memory at 0x1000 returns 42 for lw
-        // EXPECT_CALL(mem, readMemory(0x1000)).WillOnce(Return(42));
+TEST_F(IntegrationTest, BZNotTaken) {
+    if (!sim_no_forward || !sim_with_forward) {
+        ADD_FAILURE() << "Simulator instances not initialized properly";
+        FAIL();
     }
-
-    while (!sim->getPipelineStage(4)->isHaltInstruction()) {
-        advancePipeline(sim.get());
-    }
-
-    // ---------------------
-    // Check Results
-    // ---------------------
-
-    EXPECT_EQ(rf.read(1), 20);
-    EXPECT_EQ(rf.read(2), 8);
-    EXPECT_EQ(stats.totalInstructions(), 6);
-}
-
-TEST_F(IntegrationTest, BeqNotTakenNoForwarding) {
     std::vector<uint32_t> program = {
         0x04010004,  // ADDI R1 R0 4
-        0x04020004,  // ADDI R2 R0 4
-        0x3c410002,  // BEQ R1 R2 2
-        0x04010006,  // ADDI R1 R0 6
-        0x0401000a,  // ADDI R1 R0 10
+        0x38200002,  // BZ R1 2
+        0x04210006,  // ADDI R1 R1 6
+        0x0421000a,  // ADDI R1 R1 10
         0x44000000   // HALT
     };
 
     setupMockMemory(mem, program);
 
-    // Examples for a test that reads / writes memory, not used in BeqNotTaken test
-    // EXPECT_CALL(mem, readMemory(0x0)).WillOnce(Return(42));
-    // EXPECT_CALL(mem, writeMemory(0x4, 100)).Times(1);
+    // Test without forwarding
+    while (!sim_no_forward->isProgramFinished()) {
+        sim_no_forward->cycle();
 
-    // Example of directly writing to the register file as setup, instead of including
-    // all the instructions necessary for a small program. Might be useful for more
-    // complex tests where we don't want to include all instructions for setup.
-    // rf.write(9, 58);  // R9 = 58
-
-    // TODO: Determine when HALT takes effect - when it's in writeback, or immediately
-    // after being fetched, or in decode? And adjust this or above instructions as
-    // needed to ensure all of our desired test instruction complete execution.
-    while (!sim->getPipelineStage(4)->isHaltInstruction()) {
-        advancePipeline(sim.get());
+        if (stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
     }
 
-    // ---------------------
-    // Check Results
-    // ---------------------
-
     EXPECT_EQ(rf.read(1), 20);
-    EXPECT_EQ(rf.read(2), 8);
-    EXPECT_EQ(stats.totalInstructions(), 6);
-    // TODO: Add checks by category
-    // TODO: Add check for registers R1 and R2 listed as changed
-    // TODO: Add check that no memory address was listed as changed
-    // TODO: Add check for number of stalls
+    EXPECT_EQ(stats.getClockCycles(), 13);
+    EXPECT_EQ(stats.getStalls(), 4);
+    EXPECT_EQ(sim_no_forward->getPC(), 16);  // PC should be at HALT instruction
+
+    // Reset and test with forwarding
+    resetSimulator(sim_with_forward, rf, stats, mem, true);
+    setupMockMemory(mem, program);  // Re-setup mock for new simulator instance
+
+    while (!sim_with_forward->isProgramFinished()) {
+        sim_with_forward->cycle();
+
+        if (stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
+    }
+
+    EXPECT_EQ(rf.read(1), 20);                 // Same final result
+    EXPECT_EQ(stats.getClockCycles(), 9);      // Expected cycle count with forwarding
+    EXPECT_EQ(stats.getStalls(), 0);           // No stalls with forwarding
+    EXPECT_EQ(sim_with_forward->getPC(), 16);  // PC should be at HALT instruction
+}
+
+/**
+ * @brief Test branch taken with both forwarding and no forwarding.
+ * Results:
+ * - No forwarding
+ * R1 = 10 , PC = 16
+ * Cycles = 12
+ * Stalls = 2
+ * - Forwarding
+ * R1 = 10 , PC = 16
+ * Cycles = 10
+ * Stalls = 0
+ */
+TEST_F(IntegrationTest, BZTaken) {
+    if (!sim_no_forward || !sim_with_forward) {
+        ADD_FAILURE() << "Simulator instances not initialized properly";
+        FAIL();
+    }
+    std::vector<uint32_t> program = {
+        0x00000800,  // ADD R1 R0 R0
+        0x38200002,  // BZ R1 2
+        0x04210006,  // ADDI R1 R1 6 <- Should get skipped
+        0x0421000A,  // ADDI R1 R1 10
+        0x44000000   // HALT
+    };
+
+    setupMockMemory(mem, program);
+
+    // Test without forwarding
+    while (!sim_no_forward->isProgramFinished()) {
+        sim_no_forward->cycle();
+
+        if (stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
+    }
+
+    EXPECT_EQ(rf.read(1), 10);
+    EXPECT_EQ(stats.getClockCycles(), 12);
+    EXPECT_EQ(stats.getStalls(), 2);
+    EXPECT_EQ(sim_no_forward->getPC(), 16);  // PC should be at HALT instruction
+    // Add check for stats instruction categories
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 2);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 2);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 0);
+
+    // Reset and test with forwarding
+    resetSimulator(sim_with_forward, rf, stats, mem, true);
+    setupMockMemory(mem, program);  // Re-setup mock for new simulator instance
+
+    while (!sim_with_forward->isProgramFinished()) {
+        sim_with_forward->cycle();
+
+        if (stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
+    }
+
+    EXPECT_EQ(rf.read(1), 10);                 // Same final result
+    EXPECT_EQ(stats.getClockCycles(), 10);     // Expected cycle count with forwarding
+    EXPECT_EQ(stats.getStalls(), 0);           // No stalls with forwarding
+    EXPECT_EQ(sim_with_forward->getPC(), 16);  // PC should be at HALT instruction
+    // Add check for stats instruction categories
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 2);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 2);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 0);
 }

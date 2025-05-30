@@ -78,7 +78,6 @@ class FunctionalSimulator {
     FunctionalSimulator(RegisterFile* rf, Stats* st, IMemoryParser* mem,
                         bool enable_forwarding = false);
 
-
     // Getter methods
 
     /**
@@ -93,11 +92,13 @@ class FunctionalSimulator {
      */
     bool isForwardingEnabled() const;
 
+    bool isProgramFinished() { return checkProgramCompletion(); }
+
     /**
-     * @brief Get the current stall count.
-     * @return Number of remaining stall cycles.
+     * @brief Get the stall signal.
+     * @return True if the pipeline is stalled, false otherwise.
      */
-    uint8_t getStall() const;
+    bool getStall() const;
 
     bool isHalted() const { return halt_pipeline; }
 
@@ -120,12 +121,6 @@ class FunctionalSimulator {
      * @param new_pc New value for the PC.
      */
     void setPC(uint32_t new_pc);
-
-    /**
-     * @brief Set the number of stall cycles.
-     * @param cycles Number of stall cycles.
-     */
-    void setStall(uint8_t cycles);
 
     // Pipeline stage methods
 
@@ -205,8 +200,7 @@ class FunctionalSimulator {
    private:
     /// Program Counter
     static constexpr int NUM_STAGES = 5;
-    uint32_t pc;
-    bool branch_taken;
+    uint32_t pc = 0;
 
     /// General purpose registers
     RegisterFile* register_file;
@@ -220,14 +214,11 @@ class FunctionalSimulator {
     /// Serves as the simulator memory
     IMemoryParser* memory_parser;
 
-    /// Whether or not data forwarding is enabled
-    bool forward;
-
-    /// Add flag for halt instruction
-    bool halt_pipeline = false;
-
-    /// Countdown of the required stall cycles
-    uint8_t stall;
+    // Control signals
+    bool branch_taken = false;   // EXE stage sets this to true if a branch is taken
+    bool forward = false;        // Forwarding enabled or not during construction
+    bool halt_pipeline = false;  // Set to true when fetch stage encounters a halt instruction
+    bool stall = false;          // Set to true when a hazard is detected
 
     /**
      * @brief Helper method to check if an instruction writes to a register.
@@ -236,20 +227,42 @@ class FunctionalSimulator {
      */
     bool isRegisterWriteInstruction(const Instruction* instr) const;
 
-
     /**
      * @brief Helper method to get the value of a register.
      * @param reg_num Register number to read. Handles forwarding if needed. Note that this
-     * function should only be called when the pipeline is not stalled. If stalled we shouldn't be 
+     * function should only be called when the pipeline is not stalled. If stalled we shouldn't be
      * reading any registers.
      * @return Value of the register.
      */
     uint32_t readRegisterValue(uint8_t reg_num);
 
+    /* @brief Detects hazards in the pipeline and returns the number of stall cycles needed.
+     *
+     * This method checks for data hazards between the stages of the pipeline. If a hazard is
+     * detected, it returns the number of stall cycles required to resolve it. If no hazards are
+     * detected, it returns 0.
+     *
+     * @return Number of stall cycles needed to resolve hazards, or 0 if no hazards are detected.
+     */
+    bool detectStalls(void);
+
+    // Hazard helper methods
+    bool causesHazard(uint8_t reg_num, uint8_t dest_reg) const;
+    bool checkExecuteStageForHazard(uint8_t rs, uint8_t rt, bool needs_rt) const;
+    bool checkMemoryStageForHazard(uint8_t rs, uint8_t rt, bool needs_rt) const;
+
+    // determines if the instruction needs the Rt register value as a source operand
+    bool needsRtValue(const Instruction* instr) const;
+
+    /** check for program completion
+     * @brief Check if the program has finished executing. If so it will set
+     * program_finished to true
+     */
+    bool checkProgramCompletion(void);
+
 #ifdef UNIT_TEST
-     // Allow functional simulator tests access to private class member pipeline
+    // Allow functional simulator tests access to private class member pipeline
    public:
     std::array<std::unique_ptr<PipelineStageData>, NUM_STAGES>& getPipeline() { return pipeline; }
 #endif
-
 };

@@ -27,4 +27,4 @@ create_simulator_test(exe_stage_tests exe_stage_tests.cpp)
 create_simulator_test(fetch_stage_tests fetch_stage_tests.cpp)
 
 # Add the integration tests later...
-# create_simulator_test(functional_simulator_integration_test functional_simulator_integration_tests.cpp)
+create_simulator_test(functional_simulator_integration_test functional_simulator_integration_tests.cpp)
