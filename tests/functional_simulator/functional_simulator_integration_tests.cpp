@@ -44,26 +44,71 @@ class IntegrationTest : public ::testing::Test {
  * @brief Set up mocking for an array of hex-encoded instructions.
  * Does not require calls to be made in order.
  */
-void setupMockMemory(MockMemoryParser& mem, const std::vector<uint32_t>& memory,
-                     uint32_t base = 0x0) {
-    // Lambda function for our expectations below
-    auto memory_lookup = [&memory, base](uint32_t addr) -> uint32_t {
-        size_t index = (addr - base) / 4;
-        if ((addr - base) % 4 != 0) {
-            ADD_FAILURE() << "Unaligned memory access at address: 0x" << std::hex << addr;
+/**
+ * @brief Set up mocking for an array of hex-encoded instructions with optional data memory.
+ * Does not require calls to be made in order.
+ *
+ * @param mem Mock memory parser instance
+ * @param instructions Vector of instruction words
+ * @param data_memory Optional map of address -> value for data memory (for load/store tests)
+ * @param instruction_base Base address for instructions (default 0x0)
+ */
+void setupMockMemory(MockMemoryParser& mem, const std::vector<uint32_t>& instructions,
+                     const std::map<uint32_t, uint32_t>& data_memory = {},
+                     uint32_t instruction_base = 0x0) {
+    // Instruction fetch handler
+    auto instruction_lookup = [&instructions, instruction_base](uint32_t addr) -> uint32_t {
+        size_t index = (addr - instruction_base) / 4;
+        if ((addr - instruction_base) % 4 != 0) {
+            ADD_FAILURE() << "Unaligned instruction fetch at address: 0x" << std::hex << addr;
             throw std::runtime_error("Unaligned access");
         }
-        if (index >= memory.size()) {
-            ADD_FAILURE() << "Memory access out of bounds at address: 0x" << std::hex << addr;
-            throw std::out_of_range("Access outside memory vector");
+        if (index >= instructions.size()) {
+            ADD_FAILURE() << "Instruction fetch out of bounds at address: 0x" << std::hex << addr;
+            throw std::out_of_range("Access outside instruction memory");
         }
-        return memory[index];
+        return instructions[index];
+    };
+
+    // Data memory handler
+    auto data_lookup = [&instructions, &data_memory, instruction_base](uint32_t addr) -> uint32_t {
+        // If data_memory is provided and not empty, use separate data memory logic
+        if (!data_memory.empty()) {
+            // Align address to word boundary by converting word index to byte address
+            uint32_t word_index = addr / 4;
+            uint32_t aligned_addr = word_index << 2;  // word_index * 4
+
+            auto it = data_memory.find(aligned_addr);
+            if (it != data_memory.end()) {
+                return it->second;
+            } else {
+                ADD_FAILURE()
+                    << "Data memory access to uninitialized address: 0x" << std::hex << aligned_addr
+                    << " (original: 0x" << std::hex << addr
+                    << "). Please add this address to your data_memory map in the test setup.";
+                throw std::runtime_error("Access to uninitialized data memory");
+            }
+        } else {
+            // If data memory is not provided, use instruction memory. This is a fallback, and
+            // ensures tests can still read instructions as data if no specific data memory is set
+            // up. Hence, load/stores can still read or write to instruction memory.
+            size_t index = (addr - instruction_base) / 4;
+            if ((addr - instruction_base) % 4 != 0) {
+                ADD_FAILURE() << "Unaligned memory access at address: 0x" << std::hex << addr;
+                throw std::runtime_error("Unaligned access");
+            }
+            if (index >= instructions.size()) {
+                ADD_FAILURE() << "Memory access out of bounds at address: 0x" << std::hex << addr;
+                throw std::out_of_range("Access outside memory vector");
+            }
+            return instructions[index];
+        }
     };
 
     EXPECT_CALL(mem, readInstruction(::testing::_))
-        .WillRepeatedly(::testing::Invoke(memory_lookup));
+        .WillRepeatedly(::testing::Invoke(instruction_lookup));
 
-    EXPECT_CALL(mem, readMemory(::testing::_)).WillRepeatedly(::testing::Invoke(memory_lookup));
+    EXPECT_CALL(mem, readMemory(::testing::_)).WillRepeatedly(::testing::Invoke(data_lookup));
 }
 
 /**
@@ -77,7 +122,7 @@ void resetSimulator(std::unique_ptr<FunctionalSimulator>& sim, RegisterFile& rf,
 }
 
 // ---------------------------
-// Test suite (Updated for new functionality)
+// Test suite
 // ---------------------------
 
 /**
@@ -213,4 +258,65 @@ TEST_F(IntegrationTest, BZTaken) {
     EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 2);
     EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
     EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 0);
+}
+
+/**
+ * @brief RAW Depedency caused by load instruction. Special case where forwarding doesn't completely
+ * resolve the stall penalty. With forwarding, stall = 1, without forwarding stall = 2. The value
+ * forwarded should come from mem_data in pipleinstage structure.
+ *
+ *
+ */
+TEST_F(IntegrationTest, rawCausedByLoad) {
+    if (!sim_no_forward || !sim_with_forward) {
+        ADD_FAILURE() << "Simulator instances not initialized properly";
+        FAIL();
+    }
+    std::vector<uint32_t> program = {
+        0x04630064,  // ADDI R3 R3 #100
+        0x3062003c,  // LDW R2 R3 60 (Effective Address 100 + 60 = 160)
+        0x0c49001e,  // SUBI R9 R2 30 (RAW dependency on R2)
+        0x44000000   // HALT
+    };
+
+    // Prepare data memory for load instruction
+    std::map<uint32_t, uint32_t> data_memory = {
+        {160, 40}  // Address 160 contains value 40
+    };
+    setupMockMemory(mem, program, data_memory);
+
+    while (!sim_no_forward->isProgramFinished()) {
+        sim_no_forward->cycle();
+
+        if (stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
+    }
+
+    EXPECT_EQ(rf.read(3), 100);
+    EXPECT_EQ(rf.read(2), 40);  // R2 should have loaded 40 from memory
+    EXPECT_EQ(rf.read(9), 10);  // R9 = 40 - 30 = 10
+    EXPECT_EQ(stats.getStalls(), 4);
+    EXPECT_EQ(stats.getClockCycles(), 12);
+    EXPECT_EQ(sim_no_forward->getPC(), 12);
+
+    // Test with forwarding
+    resetSimulator(sim_with_forward, rf, stats, mem, true);
+    setupMockMemory(mem, program, data_memory);  // Re-setup mock for new simulator instance
+    while (!sim_with_forward->isProgramFinished()) {
+        sim_with_forward->cycle();
+
+        if (stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
+    }
+
+    EXPECT_EQ(rf.read(3), 100);
+    EXPECT_EQ(rf.read(2), 40);        // R2 should have loaded 40 from memory
+    EXPECT_EQ(rf.read(9), 10);        // R9 = 40 - 30 = 10
+    EXPECT_EQ(stats.getStalls(), 1);  // Only 1 stall due to load
+    EXPECT_EQ(stats.getClockCycles(), 9);
+    EXPECT_EQ(sim_with_forward->getPC(), 12);  // PC should be at HALT instruction
 }

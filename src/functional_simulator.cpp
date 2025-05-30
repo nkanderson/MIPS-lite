@@ -418,6 +418,11 @@ uint32_t FunctionalSimulator::readRegisterValue(uint8_t reg_num) {
         PipelineStageData* ex_data = pipeline[PipelineStage::EXECUTE].get();
         if (ex_data->dest_reg.has_value() && ex_data->dest_reg.value() == reg_num) {
             // Hazard detected, return the ALU result from EX stage
+            if (ex_data->instruction->getOpcode() == mips_lite::opcode::LDW) {
+                throw std::runtime_error(
+                    "Hazard detected in EX stage for LDW instruction. Controller should have "
+                    "stalled pipeline...");
+            }
             return ex_data->alu_result;
         }
     }
@@ -426,7 +431,9 @@ uint32_t FunctionalSimulator::readRegisterValue(uint8_t reg_num) {
         PipelineStageData* mem_data = pipeline[PipelineStage::MEMORY].get();
         if (mem_data->dest_reg.has_value() && mem_data->dest_reg.value() == reg_num) {
             // Hazard detected, return the ALU result from MEM stage
-            return mem_data->alu_result;
+            return (mem_data->instruction->getOpcode() == mips_lite::opcode::LDW)
+                       ? mem_data->memory_data  // If load word, return memory data
+                       : mem_data->alu_result;  // Otherwise, return ALU result
         }
     }
     // No hazard, read from register file
