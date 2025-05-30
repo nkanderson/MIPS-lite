@@ -71,7 +71,7 @@ void setupMockMemory(MockMemoryParser& mem, const std::vector<uint32_t>& instruc
     };
 
     // Data memory handler
-    auto data_lookup = [&instructions, &data_memory, instruction_base](uint32_t addr) -> uint32_t {
+    auto data_lookup = [&data_memory, &instruction_lookup](uint32_t addr) -> uint32_t {
         // If data_memory is provided and not empty, use separate data memory logic
         if (!data_memory.empty()) {
             auto it = data_memory.find(addr);
@@ -89,16 +89,7 @@ void setupMockMemory(MockMemoryParser& mem, const std::vector<uint32_t>& instruc
             // ensures tests can still read instructions as data if no specific data memory is set
             // up. Hence, load/stores can still read or write to instruction memory as in project
             // specs.
-            size_t index = (addr - instruction_base) / 4;
-            if ((addr - instruction_base) % 4 != 0) {
-                ADD_FAILURE() << "Unaligned memory access at address: 0x" << std::hex << addr;
-                throw std::runtime_error("Unaligned access");
-            }
-            if (index >= instructions.size()) {
-                ADD_FAILURE() << "Memory access out of bounds at address: 0x" << std::hex << addr;
-                throw std::out_of_range("Access outside memory vector");
-            }
-            return instructions[index];
+            return instruction_lookup(addr);
         }
     };
 
