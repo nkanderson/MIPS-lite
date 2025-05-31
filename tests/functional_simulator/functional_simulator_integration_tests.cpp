@@ -1,9 +1,13 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <cstdint>
+
 #include "functional_simulator.h"
+#include "gtest/gtest.h"
 #include "memory_interface.h"
 #include "mips_instruction.h"
+#include "mips_lite_defs.h"
 #include "register_file.h"
 #include "stats.h"
 
@@ -253,7 +257,6 @@ TEST_F(IntegrationTest, BZTaken) {
  * resolve the stall penalty. With forwarding, stall = 1, without forwarding stall = 2. The value
  * forwarded should come from mem_data in pipleinstage structure.
  *
- *
  */
 TEST_F(IntegrationTest, rawCausedByLoad) {
     if (!sim_no_forward || !sim_with_forward) {
@@ -307,4 +310,75 @@ TEST_F(IntegrationTest, rawCausedByLoad) {
     EXPECT_EQ(stats.getStalls(), 1);  // Only 1 stall due to load
     EXPECT_EQ(stats.getClockCycles(), 9);
     EXPECT_EQ(sim_with_forward->getPC(), 12);  // PC should be at HALT instruction
+}
+
+/**
+ * @brief RAW dependency chaining where each instruction depends on the previous one.
+ * This tests the forwarding logic in a more complex scenario.
+ */
+
+TEST_F(IntegrationTest, rawDependencyChaining) {
+    if (!sim_no_forward || !sim_with_forward) {
+        ADD_FAILURE() << "Simulator instances not initialized properly";
+        FAIL();
+    }
+
+    std::vector<uint32_t> program{0x0401000a, 0x04220014, 0x00221800, 0x08612000,
+                                  0x18832800, 0x20a43000, 0x18c13800, 0x44000000};
+
+    setupMockMemory(mem, program);
+
+    while (!sim_no_forward->isProgramFinished()) {
+        sim_no_forward->cycle();
+
+        if (stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
+    }
+
+    // Check Regs
+    EXPECT_EQ(rf.read(1), 10);
+    EXPECT_EQ(rf.read(2), 30);
+    EXPECT_EQ(rf.read(3), 40);
+    EXPECT_EQ(rf.read(4), 30);
+    EXPECT_EQ(rf.read(5), 62);
+    EXPECT_EQ(rf.read(6), 30);
+    EXPECT_EQ(rf.read(7), 30);
+    // Check timing & Stats
+    EXPECT_EQ(sim_no_forward->getPC(), 28);
+    EXPECT_EQ(stats.getStalls(), 12);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 4);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 3);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 1);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
+
+    // Test forwarding
+    resetSimulator(sim_with_forward, rf, stats, mem, true);
+    setupMockMemory(mem, program);  // Re-setup mock for new simulator instance
+
+    while (!sim_with_forward->isProgramFinished()) {
+        sim_with_forward->cycle();
+
+        if (stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
+    }
+
+    // Check Regs
+    EXPECT_EQ(rf.read(1), 10);
+    EXPECT_EQ(rf.read(2), 30);
+    EXPECT_EQ(rf.read(3), 40);
+    EXPECT_EQ(rf.read(4), 30);
+    EXPECT_EQ(rf.read(5), 62);
+    EXPECT_EQ(rf.read(6), 30);
+    EXPECT_EQ(rf.read(7), 30);
+    // Check timing & Stats
+    EXPECT_EQ(sim_no_forward->getPC(), 28);
+    EXPECT_EQ(stats.getStalls(), 0);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 4);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 3);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 1);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
 }
