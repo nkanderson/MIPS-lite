@@ -64,6 +64,7 @@ void FunctionalSimulator::instructionFetch() {
     }
 
     uint32_t instruction_word = memory_parser->readInstruction(pc);
+
     halt_pipeline = mips_lite::is_halt_instruction(instruction_word);
 
     // Create next instruction for pipeline
@@ -73,9 +74,7 @@ void FunctionalSimulator::instructionFetch() {
     stage_data->pc = pc;
 
     fetch_data = std::move(stage_data);
-    if (!halt_pipeline) {
-        pc += 4;
-    }
+    pc += 4;
 }
 
 void FunctionalSimulator::instructionDecode() {
@@ -406,7 +405,7 @@ bool FunctionalSimulator::isRegisterWriteInstruction(const Instruction* instr) c
 uint32_t FunctionalSimulator::readRegisterValue(uint8_t reg_num) {
     if (reg_num == 0) {
         return 0;  // $0 register always returns 0
-    }  // And never has hazards
+    }              // And never has hazards
     if (stall) {
         throw std::runtime_error(
             "Stall detected in ID stage but wasn't properly handled by control logic. Should "
