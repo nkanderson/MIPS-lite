@@ -115,7 +115,21 @@ void resetSimulator(std::unique_ptr<FunctionalSimulator>& sim, RegisterFile& rf,
 
 /**
  * @brief ADD Instruction Test: Performs various ADD sequences to produce a variety of results
- *
+ * 
+ * Results:
+ * R1 = 5
+ * R2 = 6
+ * R3 = -5
+ * R4 = -6
+ * R5 = 11
+ * R6 = -11
+ * R7 = -1
+ * R8 = 0
+ * 
+ * - No forwarding
+ * PC = 32, Cycles = 14, Stalls = 1
+ * - Forwarding
+ * PC = 32, Cycles = 13, Stalls = 0
  */
 TEST_F(IntegrationTest, ADDSeq) {
     if (!sim_no_forward || !sim_with_forward) {
@@ -156,6 +170,10 @@ TEST_F(IntegrationTest, ADDSeq) {
     EXPECT_EQ(stats.getClockCycles(), 14);
     EXPECT_EQ(stats.getStalls(), 1);
     EXPECT_EQ(sim_no_forward->getPC(), 32);  // PC should be at HALT instruction
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 1);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 8);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 0);
 
     // Reset and test with forwarding
     resetSimulator(sim_with_forward, rf, stats, mem, true);
@@ -181,11 +199,27 @@ TEST_F(IntegrationTest, ADDSeq) {
     EXPECT_EQ(stats.getClockCycles(), 13);
     EXPECT_EQ(stats.getStalls(), 0);
     EXPECT_EQ(sim_no_forward->getPC(), 32);  // PC should be at HALT instruction
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 1);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 8);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 0);
 }
 
 /**
  * @brief ADDI Instruction Test: Performs various ADDI sequences to produce a variety of results
- *
+ * 
+ * Results:
+ * R1 = 5
+ * R2 = -5
+ * R3 = 11
+ * R4 = -11
+ * R5 = -2
+ * R6 = 0
+ * 
+ * - No forwarding
+ * PC = 24, Cycles = 12, Stalls = 1
+ * - Forwarding
+ * PC = 24, Cycles = 11, Stalls = 0
  */
 TEST_F(IntegrationTest, ADDISeq) {
     if (!sim_no_forward || !sim_with_forward) {
@@ -222,6 +256,10 @@ TEST_F(IntegrationTest, ADDISeq) {
     EXPECT_EQ(stats.getClockCycles(), 12);
     EXPECT_EQ(stats.getStalls(), 1);
     EXPECT_EQ(sim_no_forward->getPC(), 24);  // PC should be at HALT instruction
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 1);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 6);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 0);
 
     // Reset and test with forwarding
     resetSimulator(sim_with_forward, rf, stats, mem, true);
@@ -245,11 +283,29 @@ TEST_F(IntegrationTest, ADDISeq) {
     EXPECT_EQ(stats.getClockCycles(), 11);
     EXPECT_EQ(stats.getStalls(), 0);
     EXPECT_EQ(sim_no_forward->getPC(), 24);  // PC should be at HALT instruction
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 1);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 6);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 0);
 }
 
 /**
  * @brief SUB Instruction Test: Performs various SUB sequences to produce a variety of results
- *
+ * 
+ * Results:
+ * R1 = 5
+ * R2 = 6
+ * R3 = -5
+ * R4 = -6
+ * R5 = -1
+ * R6 = 1
+ * R7 = 11
+ * R8 = 0
+ * 
+ * - No forwarding
+ * PC = 32, Cycles = 14, Stalls = 1
+ * - Forwarding
+ * PC = 32, Cycles = 13, Stalls = 0
  */
 TEST_F(IntegrationTest, SUBSeq) {
     if (!sim_no_forward || !sim_with_forward) {
@@ -290,6 +346,10 @@ TEST_F(IntegrationTest, SUBSeq) {
     EXPECT_EQ(stats.getClockCycles(), 14);
     EXPECT_EQ(stats.getStalls(), 1);
     EXPECT_EQ(sim_no_forward->getPC(), 32);  // PC should be at HALT instruction
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 1);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 8);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 0);
 
     // Reset and test with forwarding
     resetSimulator(sim_with_forward, rf, stats, mem, true);
@@ -315,11 +375,27 @@ TEST_F(IntegrationTest, SUBSeq) {
     EXPECT_EQ(stats.getClockCycles(), 13);
     EXPECT_EQ(stats.getStalls(), 0);
     EXPECT_EQ(sim_no_forward->getPC(), 32);  // PC should be at HALT instruction
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 1);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 8);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 0);
 }
 
 /**
  * @brief SUBI Instruction Test: Performs various SUBI sequences to produce a variety of results
- *
+ * 
+ * Results:
+ * R1 = 5
+ * R2 = -5
+ * R3 = -1
+ * R4 = 1
+ * R5 = -8
+ * R6 = 0
+ * 
+ * - No forwarding
+ * PC = 24, Cycles = 12, Stalls = 1
+ * - Forwarding
+ * PC = 24, Cycles = 11, Stalls = 0
  */
 TEST_F(IntegrationTest, SUBISeq) {
     if (!sim_no_forward || !sim_with_forward) {
@@ -356,6 +432,10 @@ TEST_F(IntegrationTest, SUBISeq) {
     EXPECT_EQ(stats.getClockCycles(), 12);
     EXPECT_EQ(stats.getStalls(), 1);
     EXPECT_EQ(sim_no_forward->getPC(), 24);  // PC should be at HALT instruction
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 1);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 6);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 0);
 
     // Reset and test with forwarding
     resetSimulator(sim_with_forward, rf, stats, mem, true);
@@ -379,12 +459,30 @@ TEST_F(IntegrationTest, SUBISeq) {
     EXPECT_EQ(stats.getClockCycles(), 11);
     EXPECT_EQ(stats.getStalls(), 0);
     EXPECT_EQ(sim_no_forward->getPC(), 24);  // PC should be at HALT instruction
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 1);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 6);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 0);
 }
 
 /**
  * @brief MUL Instruction Test: Performs various MUL sequences to produce a variety of results.
  * Both no-forwarding and forwarding tests should have the same timing.
  * 
+ * Results:
+ * R1 = 5
+ * R2 = 6
+ * R3 = -5
+ * R4 = -6
+ * R5 = 1
+ * R6 = 30
+ * R7 = 30
+ * R8 = -30
+ * R9 = 0
+ * R10 = 5
+ * 
+ * - No forwarding and Forwarding
+ * PC = 40, Cycles = 15, Stalls = 0
  */
 TEST_F(IntegrationTest, MULSeq) {
     if (!sim_no_forward || !sim_with_forward) {
@@ -429,6 +527,10 @@ TEST_F(IntegrationTest, MULSeq) {
     EXPECT_EQ(stats.getClockCycles(), 15);
     EXPECT_EQ(stats.getStalls(), 0);
     EXPECT_EQ(sim_no_forward->getPC(), 40);  // PC should be at HALT instruction
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 1);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 10);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 0);
 
     // Reset and test with forwarding
     resetSimulator(sim_with_forward, rf, stats, mem, true);
@@ -456,12 +558,29 @@ TEST_F(IntegrationTest, MULSeq) {
     EXPECT_EQ(stats.getClockCycles(), 15);
     EXPECT_EQ(stats.getStalls(), 0);
     EXPECT_EQ(sim_no_forward->getPC(), 40);  // PC should be at HALT instruction
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 1);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 10);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 0);
 }
 
 /**
  * @brief MULI Instruction Test: Performs various MULI sequences to produce a variety of results
  * Both no-forwarding and forwarding tests should have the same timing.
  * 
+ * Results:
+ * R1 = 5
+ * R2 = -5
+ * R3 = 30
+ * R1 = 30
+ * R2 = -15
+ * R3 = 0
+ * R7 = 5
+ * 
+ * - No forwarding
+ * PC = 28, Cycles = 13, Stalls = 1
+ * - Forwarding
+ * PC = 28, Cycles = 12, Stalls = 0
  */
 TEST_F(IntegrationTest, MULISeq) {
     if (!sim_no_forward || !sim_with_forward) {
@@ -500,6 +619,10 @@ TEST_F(IntegrationTest, MULISeq) {
     EXPECT_EQ(stats.getClockCycles(), 13);
     EXPECT_EQ(stats.getStalls(), 1);
     EXPECT_EQ(sim_no_forward->getPC(), 28);  // PC should be at HALT instruction
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 1);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 7);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 0);
 
     // Reset and test with forwarding
     resetSimulator(sim_with_forward, rf, stats, mem, true);
@@ -524,6 +647,10 @@ TEST_F(IntegrationTest, MULISeq) {
     EXPECT_EQ(stats.getClockCycles(), 12);
     EXPECT_EQ(stats.getStalls(), 0);
     EXPECT_EQ(sim_no_forward->getPC(), 28);  // PC should be at HALT instruction
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 1);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 7);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 0);
 }
 
 
