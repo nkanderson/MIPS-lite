@@ -348,6 +348,7 @@ TEST_F(IntegrationTest, rawDependencyChaining) {
     // Check timing & Stats
     EXPECT_EQ(sim_no_forward->getPC(), 28);
     EXPECT_EQ(stats.getStalls(), 12);
+    EXPECT_EQ(stats.getClockCycles(), 24);
     EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 4);
     EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 3);
     EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 1);
@@ -376,6 +377,7 @@ TEST_F(IntegrationTest, rawDependencyChaining) {
     EXPECT_EQ(rf.read(7), 30);
     // Check timing & Stats
     EXPECT_EQ(sim_no_forward->getPC(), 28);
+    EXPECT_EQ(stats.getClockCycles(), 12);
     EXPECT_EQ(stats.getStalls(), 0);
     EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 4);
     EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 3);
