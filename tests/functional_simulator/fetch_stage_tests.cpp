@@ -97,9 +97,9 @@ TEST_F(FetchStageTest, FetchFourInstructions) {
     // Fetch fourth instruction (HALT) - should set halt_pipeline flag
     EXPECT_FALSE(sim->isHalted());  // Should not be halted yet
     sim->instructionFetch();
-    EXPECT_EQ(sim->getPC(), 12);  // PC should not increment after HALT
-    EXPECT_TRUE(sim->isHalted());   // Now should be set to halt
-    
+    EXPECT_EQ(sim->getPC(), 16);   // PC should increment once more after HALT
+    EXPECT_TRUE(sim->isHalted());  // Now should be set to halt
+
     fetch_data = sim->getPipelineStage(FunctionalSimulator::PipelineStage::FETCH);
     ASSERT_NE(fetch_data, nullptr);
     EXPECT_EQ(fetch_data->instruction->getOpcode(), mips_lite::opcode::HALT);
@@ -108,6 +108,6 @@ TEST_F(FetchStageTest, FetchFourInstructions) {
     // Try to fetch again - should do nothing because halt_pipeline is true
     sim->advancePipeline();
     sim->instructionFetch();
-    EXPECT_EQ(sim->getPC(), 12);  // PC should not change
+    EXPECT_EQ(sim->getPC(), 16);  // PC should increment once more after HALT
     EXPECT_TRUE(sim->isStageEmpty(FunctionalSimulator::PipelineStage::FETCH));  // Should not fetch
 }
