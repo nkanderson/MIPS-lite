@@ -13,6 +13,7 @@
 #include "mips_lite_defs.h"
 #include "mips_instruction.h"
 
+const uint32_t timeout_cycles_ = 100000;
 
 /**
  * @brief main: main program for MIPS-lite simulator
@@ -91,7 +92,17 @@ int main (int argc, char* argv[]) {
     MemoryParser mp(input_tracename_);
 
     // Pass to Functional Simulator
-    FunctionalSimulator fs(&rf, &stats, &mp, forward_);
+    std::unique_ptr<FunctionalSimulator> fs;
+    fs = std::make_unique<FunctionalSimulator>(&rf, &stats, &mp, forward_);
+
+    while(!fs->isProgramFinished()){
+        fs->cycle();
+
+        if(stats.getClockCycles() >= timeout_cycles_) {
+            std::cerr << "Simulator did not halt within " << timeout_cycles_ << " cycles" << "\n";
+            break;
+        }
+    }
 
     // If memory save is enabled
     if (enable_mem_save_) {
@@ -106,11 +117,11 @@ int main (int argc, char* argv[]) {
 
     // Print Instruction Counts
     std::cout << "\nInstruction Counts:\n\n";
-    std::cout << "\tTotal number of instructions:\t" << stats.totalInstructions() << "\n";
-    std::cout << "\tArithmetic instructions:\t" << stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC) << "\n";
-    std::cout << "\tLogical instructions:\t\t" << stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL) << "\n";
-    std::cout << "\tMemory Access instructions:\t" << stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS) << "\n";
-    std::cout << "\tControl Flow instructions:\t" << stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW) << "\n";
+    std::cout << "\tTotal number of instructions:\t" << std::to_string(stats.totalInstructions()) << "\n";
+    std::cout << "\tArithmetic instructions:\t" << std::to_string(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC)) << "\n";
+    std::cout << "\tLogical instructions:\t\t" << std::to_string(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL)) << "\n";
+    std::cout << "\tMemory Access instructions:\t" << std::to_string(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS)) << "\n";
+    std::cout << "\tControl Flow instructions:\t" << std::to_string(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW)) << "\n";
 
     // Print Final Register State
     std::set<uint8_t> final_registers_(stats.getRegisters().begin(), stats.getRegisters().end());
@@ -118,30 +129,30 @@ int main (int argc, char* argv[]) {
     std::cout << "\nFinal Register State:\n\n";
 
     // Print Program Counter
-    std::cout << "\tProgram Counter:\t" << fs.getPC() << "\n";
+    std::cout << "\tProgram Counter:\t" << std::to_string(fs->getPC()) << "\n";
 
     // Print registers that have been used
     for (auto item = final_registers_.begin(); item != final_registers_.end(); item++) {
-        std::cout << "\tR" << *item << ": " << rf.read(*item) << "\n";
+        std::cout << "\tR" << std::to_string(*item) << ": " << std::to_string(rf.read(*item)) << "\n";
     }
 
     // Print Total Number of Stalls
     if (time_info_) {
-        std::cout << "\tTotal Stalls:\t" << stats.getStalls() << "\n";
+        std::cout << "\tTotal Stalls:\t" << std::to_string(stats.getStalls()) << "\n";
     }
 
     // Print Final Memory State
-    std::set<uint8_t> final_memory_(stats.getMemoryAddresses().begin(), stats.getMemoryAddresses().end());
+    std::set<uint32_t> final_memory_(stats.getMemoryAddresses().begin(), stats.getMemoryAddresses().end());
 
     // Print memory locations and values that have been accessed
     for (auto item = final_memory_.begin(); item != final_memory_.end(); item++) {
-        std::cout << "\tAddress: " << *item << ", Contents: " << mp.readMemory(*item) << "\n";
+        std::cout << "\tAddress: " << std::to_string(*item) << ", Contents: " << std::to_string(mp.readMemory(*item)) << "\n";
     }
 
     // Print timing info if enabled
     if (time_info_) {
         std::cout << "\nTiming Simulator:\n\n";
-        std::cout << "\tTotal number of clock cycles: " << stats.getClockCycles() << "\n";
+        std::cout << "\tTotal number of clock cycles: " << std::to_string(stats.getClockCycles()) << "\n";
     } 
 
     return 0;
