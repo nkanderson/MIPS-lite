@@ -114,6 +114,420 @@ void resetSimulator(std::unique_ptr<FunctionalSimulator>& sim, RegisterFile& rf,
 // ---------------------------
 
 /**
+ * @brief ADD Instruction Test: Performs various ADD sequences to produce a variety of results
+ *
+ */
+TEST_F(IntegrationTest, ADDSeq) {
+    if (!sim_no_forward || !sim_with_forward) {
+        ADD_FAILURE() << "Simulator instances not initialized properly";
+        FAIL();
+    }
+    std::vector<uint32_t> program = {
+        0x04010005,     // ADDI R1 R0 5
+        0x04020006,     // ADDI R2 R0 6
+        0x0403fffb,     // ADDI R3 R0 -5
+        0x0404fffa,     // ADDI R4 R0 -6
+        0x00222800,     // ADD R5 R1 R2
+        0x00643000,     // ADD R6 R3 R4
+        0x00243800,     // ADD R7 R1 R4
+        0x00234000,     // ADD R8 R1 R3
+        0x44000000      // HALT
+    };
+
+    setupMockMemory(mem, program);
+
+    while (!sim_no_forward->isProgramFinished()) {
+        sim_no_forward->cycle();
+
+        if (stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
+    }
+
+    EXPECT_EQ(rf.read(1), 5);
+    EXPECT_EQ(rf.read(2), 6);
+    EXPECT_EQ(rf.read(3), -5);
+    EXPECT_EQ(rf.read(4), -6);
+    EXPECT_EQ(rf.read(5), 11);
+    EXPECT_EQ(rf.read(6), -11);
+    EXPECT_EQ(rf.read(7), -1);
+    EXPECT_EQ(rf.read(8), 0);
+    EXPECT_EQ(stats.getClockCycles(), 14);
+    EXPECT_EQ(stats.getStalls(), 1);
+    EXPECT_EQ(sim_no_forward->getPC(), 32);  // PC should be at HALT instruction
+
+    // Reset and test with forwarding
+    resetSimulator(sim_with_forward, rf, stats, mem, true);
+    setupMockMemory(mem, program);  // Re-setup mock for new simulator instance
+
+    while (!sim_with_forward->isProgramFinished()) {
+        sim_with_forward->cycle();
+
+        if (stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
+    }
+
+    EXPECT_EQ(rf.read(1), 5);
+    EXPECT_EQ(rf.read(2), 6);
+    EXPECT_EQ(rf.read(3), -5);
+    EXPECT_EQ(rf.read(4), -6);
+    EXPECT_EQ(rf.read(5), 11);
+    EXPECT_EQ(rf.read(6), -11);
+    EXPECT_EQ(rf.read(7), -1);
+    EXPECT_EQ(rf.read(8), 0);
+    EXPECT_EQ(stats.getClockCycles(), 13);
+    EXPECT_EQ(stats.getStalls(), 0);
+    EXPECT_EQ(sim_no_forward->getPC(), 32);  // PC should be at HALT instruction
+}
+
+/**
+ * @brief ADDI Instruction Test: Performs various ADDI sequences to produce a variety of results
+ *
+ */
+TEST_F(IntegrationTest, ADDISeq) {
+    if (!sim_no_forward || !sim_with_forward) {
+        ADD_FAILURE() << "Simulator instances not initialized properly";
+        FAIL();
+    }
+    std::vector<uint32_t> program = {
+        0x04010005,     // ADDI R1 R0 5
+        0x0402fffb,     // ADDI R2 R0 -5
+        0x04230006,     // ADDI R3 R1 6
+        0x0444fffa,     // ADDI R4 R2 -6
+        0x04450003,     // ADDI R5 R2 3
+        0x0426fffb,     // ADDI R6 R1 -5
+        0x44000000      // HALT
+    };
+
+    setupMockMemory(mem, program);
+
+    while (!sim_no_forward->isProgramFinished()) {
+        sim_no_forward->cycle();
+
+        if (stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
+    }
+
+    EXPECT_EQ(rf.read(1), 5);
+    EXPECT_EQ(rf.read(2), -5);
+    EXPECT_EQ(rf.read(3), 11);
+    EXPECT_EQ(rf.read(4), -11);
+    EXPECT_EQ(rf.read(5), -2);
+    EXPECT_EQ(rf.read(6), 0);
+    EXPECT_EQ(stats.getClockCycles(), 12);
+    EXPECT_EQ(stats.getStalls(), 1);
+    EXPECT_EQ(sim_no_forward->getPC(), 24);  // PC should be at HALT instruction
+
+    // Reset and test with forwarding
+    resetSimulator(sim_with_forward, rf, stats, mem, true);
+    setupMockMemory(mem, program);  // Re-setup mock for new simulator instance
+
+    while (!sim_with_forward->isProgramFinished()) {
+        sim_with_forward->cycle();
+
+        if (stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
+    }
+
+    EXPECT_EQ(rf.read(1), 5);
+    EXPECT_EQ(rf.read(2), -5);
+    EXPECT_EQ(rf.read(3), 11);
+    EXPECT_EQ(rf.read(4), -11);
+    EXPECT_EQ(rf.read(5), -2);
+    EXPECT_EQ(rf.read(6), 0);
+    EXPECT_EQ(stats.getClockCycles(), 11);
+    EXPECT_EQ(stats.getStalls(), 0);
+    EXPECT_EQ(sim_no_forward->getPC(), 24);  // PC should be at HALT instruction
+}
+
+/**
+ * @brief SUB Instruction Test: Performs various SUB sequences to produce a variety of results
+ *
+ */
+TEST_F(IntegrationTest, SUBSeq) {
+    if (!sim_no_forward || !sim_with_forward) {
+        ADD_FAILURE() << "Simulator instances not initialized properly";
+        FAIL();
+    }
+    std::vector<uint32_t> program = {
+        0x04010005,     // ADDI R1 R0 5
+        0x04020006,     // ADDI R2 R0 6
+        0x0403fffb,     // ADDI R3 R0 -5
+        0x0404fffa,     // ADDI R4 R0 -6
+        0x08222800,     // SUB R5 R1 R2
+        0x08643000,     // SUB R6 R3 R4
+        0x08243800,     // SUB R7 R1 R4
+        0x08214000,     // SUB R8 R1 R1
+        0x44000000      // HALT
+    };
+
+    setupMockMemory(mem, program);
+
+    while (!sim_no_forward->isProgramFinished()) {
+        sim_no_forward->cycle();
+
+        if (stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
+    }
+
+    EXPECT_EQ(rf.read(1), 5);
+    EXPECT_EQ(rf.read(2), 6);
+    EXPECT_EQ(rf.read(3), -5);
+    EXPECT_EQ(rf.read(4), -6);
+    EXPECT_EQ(rf.read(5), -1);
+    EXPECT_EQ(rf.read(6), 1);
+    EXPECT_EQ(rf.read(7), 11);
+    EXPECT_EQ(rf.read(8), 0);
+    EXPECT_EQ(stats.getClockCycles(), 14);
+    EXPECT_EQ(stats.getStalls(), 1);
+    EXPECT_EQ(sim_no_forward->getPC(), 32);  // PC should be at HALT instruction
+
+    // Reset and test with forwarding
+    resetSimulator(sim_with_forward, rf, stats, mem, true);
+    setupMockMemory(mem, program);  // Re-setup mock for new simulator instance
+
+    while (!sim_with_forward->isProgramFinished()) {
+        sim_with_forward->cycle();
+
+        if (stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
+    }
+
+    EXPECT_EQ(rf.read(1), 5);
+    EXPECT_EQ(rf.read(2), 6);
+    EXPECT_EQ(rf.read(3), -5);
+    EXPECT_EQ(rf.read(4), -6);
+    EXPECT_EQ(rf.read(5), -1);
+    EXPECT_EQ(rf.read(6), 1);
+    EXPECT_EQ(rf.read(7), 11);
+    EXPECT_EQ(rf.read(8), 0);
+    EXPECT_EQ(stats.getClockCycles(), 13);
+    EXPECT_EQ(stats.getStalls(), 0);
+    EXPECT_EQ(sim_no_forward->getPC(), 32);  // PC should be at HALT instruction
+}
+
+/**
+ * @brief SUBI Instruction Test: Performs various SUBI sequences to produce a variety of results
+ *
+ */
+TEST_F(IntegrationTest, SUBISeq) {
+    if (!sim_no_forward || !sim_with_forward) {
+        ADD_FAILURE() << "Simulator instances not initialized properly";
+        FAIL();
+    }
+    std::vector<uint32_t> program = {
+        0x04010005,     // ADDI R1 R0 5
+        0x0402fffb,     // ADDI R2 R0 -5
+        0x0c230006,     // SUBI R3 R1 6
+        0x0c44fffa,     // SUBI R4 R2 -6
+        0x0c450003,     // SUBI R5 R2 3
+        0x0c260005,     // SUBI R6 R1 5
+        0x44000000      // HALT
+    };
+
+    setupMockMemory(mem, program);
+
+    while (!sim_no_forward->isProgramFinished()) {
+        sim_no_forward->cycle();
+
+        if (stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
+    }
+
+    EXPECT_EQ(rf.read(1), 5);
+    EXPECT_EQ(rf.read(2), -5);
+    EXPECT_EQ(rf.read(3), -1);
+    EXPECT_EQ(rf.read(4), 1);
+    EXPECT_EQ(rf.read(5), -8);
+    EXPECT_EQ(rf.read(6), 0);
+    EXPECT_EQ(stats.getClockCycles(), 12);
+    EXPECT_EQ(stats.getStalls(), 1);
+    EXPECT_EQ(sim_no_forward->getPC(), 24);  // PC should be at HALT instruction
+
+    // Reset and test with forwarding
+    resetSimulator(sim_with_forward, rf, stats, mem, true);
+    setupMockMemory(mem, program);  // Re-setup mock for new simulator instance
+
+    while (!sim_with_forward->isProgramFinished()) {
+        sim_with_forward->cycle();
+
+        if (stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
+    }
+
+    EXPECT_EQ(rf.read(1), 5);
+    EXPECT_EQ(rf.read(2), -5);
+    EXPECT_EQ(rf.read(3), -1);
+    EXPECT_EQ(rf.read(4), 1);
+    EXPECT_EQ(rf.read(5), -8);
+    EXPECT_EQ(rf.read(6), 0);
+    EXPECT_EQ(stats.getClockCycles(), 11);
+    EXPECT_EQ(stats.getStalls(), 0);
+    EXPECT_EQ(sim_no_forward->getPC(), 24);  // PC should be at HALT instruction
+}
+
+/**
+ * @brief MUL Instruction Test: Performs various MUL sequences to produce a variety of results.
+ * Both no-forwarding and forwarding tests should have the same timing.
+ * 
+ */
+TEST_F(IntegrationTest, MULSeq) {
+    if (!sim_no_forward || !sim_with_forward) {
+        ADD_FAILURE() << "Simulator instances not initialized properly";
+        FAIL();
+    }
+    std::vector<uint32_t> program = {
+        0x04010005,     // ADDI R1 R0 5
+        0x04020006,     // ADDI R2 R0 6
+        0x0403fffb,     // ADDI R3 R0 -5
+        0x0404fffa,     // ADDI R4 R0 -6
+        0x04050001,     // ADDI R5 R0 1
+        0x10223000,     // MUL R6 R1 R2
+        0x10643800,     // MUL R7 R3 R4
+        0x10244000,     // MUL R8 R1 R4
+        0x10204800,     // MUL R9 R1 R0
+        0x10255000,     // MUL R10 R1 R5
+        0x44000000      // HALT
+    };
+
+    setupMockMemory(mem, program);
+
+    while (!sim_no_forward->isProgramFinished()) {
+        sim_no_forward->cycle();
+
+        if (stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
+    }
+
+    EXPECT_EQ(rf.read(1), 5);
+    EXPECT_EQ(rf.read(2), 6);
+    EXPECT_EQ(rf.read(3), -5);
+    EXPECT_EQ(rf.read(4), -6);
+    EXPECT_EQ(rf.read(5), 1);
+    EXPECT_EQ(rf.read(6), 30);
+    EXPECT_EQ(rf.read(7), 30);
+    EXPECT_EQ(rf.read(8), -30);
+    EXPECT_EQ(rf.read(9), 0);
+    EXPECT_EQ(rf.read(10), 5);
+    EXPECT_EQ(stats.getClockCycles(), 15);
+    EXPECT_EQ(stats.getStalls(), 0);
+    EXPECT_EQ(sim_no_forward->getPC(), 40);  // PC should be at HALT instruction
+
+    // Reset and test with forwarding
+    resetSimulator(sim_with_forward, rf, stats, mem, true);
+    setupMockMemory(mem, program);  // Re-setup mock for new simulator instance
+
+    while (!sim_with_forward->isProgramFinished()) {
+        sim_with_forward->cycle();
+
+        if (stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
+    }
+
+    EXPECT_EQ(rf.read(1), 5);
+    EXPECT_EQ(rf.read(2), 6);
+    EXPECT_EQ(rf.read(3), -5);
+    EXPECT_EQ(rf.read(4), -6);
+    EXPECT_EQ(rf.read(5), 1);
+    EXPECT_EQ(rf.read(6), 30);
+    EXPECT_EQ(rf.read(7), 30);
+    EXPECT_EQ(rf.read(8), -30);
+    EXPECT_EQ(rf.read(9), 0);
+    EXPECT_EQ(rf.read(10), 5);
+    EXPECT_EQ(stats.getClockCycles(), 15);
+    EXPECT_EQ(stats.getStalls(), 0);
+    EXPECT_EQ(sim_no_forward->getPC(), 40);  // PC should be at HALT instruction
+}
+
+/**
+ * @brief MULI Instruction Test: Performs various MULI sequences to produce a variety of results
+ * Both no-forwarding and forwarding tests should have the same timing.
+ * 
+ */
+TEST_F(IntegrationTest, MULISeq) {
+    if (!sim_no_forward || !sim_with_forward) {
+        ADD_FAILURE() << "Simulator instances not initialized properly";
+        FAIL();
+    }
+    std::vector<uint32_t> program = {
+        0x04010005,     // ADDI R1 R0 5
+        0x0402fffb,     // ADDI R2 R0 -5
+        0x14230006,     // MULI R3 R1 6
+        0x1444fffa,     // MULI R4 R2 -6
+        0x14450003,     // MULI R5 R2 3
+        0x14260000,     // MULI R6 R1 0
+        0x14270001,     // MULI R7 R1 1
+        0x44000000      // HALT
+    };
+
+    setupMockMemory(mem, program);
+
+    while (!sim_no_forward->isProgramFinished()) {
+        sim_no_forward->cycle();
+
+        if (stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
+    }
+
+    EXPECT_EQ(rf.read(1), 5);
+    EXPECT_EQ(rf.read(2), -5);
+    EXPECT_EQ(rf.read(3), 30);
+    EXPECT_EQ(rf.read(4), 30);
+    EXPECT_EQ(rf.read(5), -15);
+    EXPECT_EQ(rf.read(6), 0);
+    EXPECT_EQ(rf.read(7), 5);
+    EXPECT_EQ(stats.getClockCycles(), 13);
+    EXPECT_EQ(stats.getStalls(), 1);
+    EXPECT_EQ(sim_no_forward->getPC(), 28);  // PC should be at HALT instruction
+
+    // Reset and test with forwarding
+    resetSimulator(sim_with_forward, rf, stats, mem, true);
+    setupMockMemory(mem, program);  // Re-setup mock for new simulator instance
+
+    while (!sim_with_forward->isProgramFinished()) {
+        sim_with_forward->cycle();
+
+        if (stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
+    }
+
+    EXPECT_EQ(rf.read(1), 5);
+    EXPECT_EQ(rf.read(2), -5);
+    EXPECT_EQ(rf.read(3), 30);
+    EXPECT_EQ(rf.read(4), 30);
+    EXPECT_EQ(rf.read(5), -15);
+    EXPECT_EQ(rf.read(6), 0);
+    EXPECT_EQ(rf.read(7), 5);
+    EXPECT_EQ(stats.getClockCycles(), 12);
+    EXPECT_EQ(stats.getStalls(), 0);
+    EXPECT_EQ(sim_no_forward->getPC(), 28);  // PC should be at HALT instruction
+}
+
+
+/**
  * @brief Test branch not taken with both forwarding and no forwarding.
  * Results:
  * - No forwarding
