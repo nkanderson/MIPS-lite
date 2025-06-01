@@ -1,0 +1,37 @@
+ADDI R2 R0 -256     
+ADDI R3 R0 -15415   
+ADDI R4 R0 -1
+XOR R20 R2 R3       
+XOR R21 R2 R0       
+XOR R22 R2 R4       
+XORI R23 R3 255     
+XORI R24 R3 0       
+XORI R25 R3 1       
+HALT
+
+Expected stats:
+10 total instructions executed
+3 arithmetic ops
+6 logical ops
+1 control flow ops
+
+Without forwarding:
+- 16 total cycles
+- 3 stalls
+
+With forwarding:
+- 13 total cycles
+- 0 stalls
+
+PC at 0x28 (32, or the 10th instruction)
+
+Changed registers and their contents
+R2 = 0xFFFFFF00
+R3 = 0xFFFFC369
+R4 = 0xFFFFFFFF
+R20 = 0x00003CC9
+R21 = 0xFFFFFF00
+R22 = 0x000000FF
+R23 = 0xFFFFC336
+R24 = 0xFFFFC3C9
+R25 = 0xFFFFC3C8
