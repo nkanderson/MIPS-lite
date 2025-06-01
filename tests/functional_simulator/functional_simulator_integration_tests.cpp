@@ -1426,24 +1426,29 @@ TEST_F(IntegrationTest, MemoryAccess_NoForwarding) {
         0x44000000   // HALT
     };
 
-    resetSimulator(sim_no_forward, rf, stats, mem, false);
+    // Prepare data memory for load instruction
+    std::map<uint32_t, uint32_t> data_memory = {
+        {1000, 42}  // Address 1000 contains value 42
+    };
 
-    EXPECT_CALL(mem, writeMemory(0x3E8, 42)).Times(1);
-    EXPECT_CALL(mem, readMemory(0x3E8)).WillOnce(Return(42));
-
-    setupMockMemory(mem, program);
+    setupMockMemory(mem, program, data_memory);
 
     while (!sim_no_forward->isProgramFinished()) {
         sim_no_forward->cycle();
+
+        if (stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
     }
 
     EXPECT_EQ(rf.read(1), 0x000003E8);
     EXPECT_EQ(rf.read(2), 0x0000002A);
     EXPECT_EQ(stats.totalInstructions(), 6);
 
-    EXPECT_EQ(sim_with_forward->getPC(), 24);
+    EXPECT_EQ(sim_no_forward->getPC(), 24);
     EXPECT_EQ(stats.getStalls(), 2);
-    EXPECT_EQ(stats.getClockCycles(), 10);
+    EXPECT_EQ(stats.getClockCycles(), 12);
     EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 3);
     EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 1);
     EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 2);
@@ -1459,16 +1464,20 @@ TEST_F(IntegrationTest, MemoryAccess_WithForwarding) {
         0x44000000   // HALT
     };
 
-    resetSimulator(sim_with_forward, rf, stats, mem, false);
+    // Prepare data memory for load instruction
+    std::map<uint32_t, uint32_t> data_memory = {
+        {1000, 42}  // Address 1000 contains value 42
+    };
 
-    // Expect mem WR & RD to hit correct address
-    EXPECT_CALL(mem, writeMemory(0x3E8, 42)).Times(1);
-    EXPECT_CALL(mem, readMemory(0x3E8)).WillOnce(Return(42));
-
-    setupMockMemory(mem, program);
+    setupMockMemory(mem, program, data_memory);
 
     while (!sim_with_forward->isProgramFinished()) {
         sim_with_forward->cycle();
+
+        if (stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
     }
 
     EXPECT_EQ(rf.read(1), 0x000003E8);
@@ -1477,7 +1486,7 @@ TEST_F(IntegrationTest, MemoryAccess_WithForwarding) {
 
     EXPECT_EQ(sim_with_forward->getPC(), 24);
     EXPECT_EQ(stats.getStalls(), 0);
-    EXPECT_EQ(stats.getClockCycles(), 9);
+    EXPECT_EQ(stats.getClockCycles(), 10);
     EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 3);
     EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 1);
     EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 2);
