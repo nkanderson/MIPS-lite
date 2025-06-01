@@ -1365,7 +1365,7 @@ TEST_F(IntegrationTest, XOR_NoForwarding) {
     EXPECT_EQ(stats.totalInstructions(), 10);
 
     EXPECT_EQ(sim_no_forward->getPC(), 40);
-    EXPECT_EQ(stats.getStalls(), 1);
+    EXPECT_EQ(stats.getStalls(), 1);  // GoogleSheets noted 3 stalls, but simulator reports 1
     EXPECT_EQ(stats.getClockCycles(), 15);
     EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 3);
     EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 6);
@@ -1413,4 +1413,72 @@ TEST_F(IntegrationTest, XOR_WithForwarding) {
     EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 6);
     EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 1);
     EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
+}
+
+// Memory Access Testing
+TEST_F(IntegrationTest, MemoryAccess_NoForwarding) {
+    std::vector<uint32_t> program = {
+        0x040103e8,  // ADDI R1 R0 1000
+        0x0402002a,  // ADDI R2 R0 42
+        0x34220000,  // STW R1 R2 0
+        0x04020000,  // ADDI R2 R0 0
+        0x30220000,  // LDW R2 R1 0
+        0x44000000   // HALT
+    };
+
+    resetSimulator(sim_no_forward, rf, stats, mem, false);
+
+    EXPECT_CALL(mem, writeMemory(0x3E8, 42)).Times(1);
+    EXPECT_CALL(mem, readMemory(0x3E8)).WillOnce(Return(42));
+
+    setupMockMemory(mem, program);
+
+    while (!sim_no_forward->isProgramFinished()) {
+        sim_no_forward->cycle();
+    }
+
+    EXPECT_EQ(rf.read(1), 0x000003E8);
+    EXPECT_EQ(rf.read(2), 0x0000002A);
+    EXPECT_EQ(stats.totalInstructions(), 6);
+
+    EXPECT_EQ(sim_with_forward->getPC(), 24);
+    EXPECT_EQ(stats.getStalls(), 2);
+    EXPECT_EQ(stats.getClockCycles(), 10);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 3);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 1);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 2);
+}
+
+TEST_F(IntegrationTest, MemoryAccess_WithForwarding) {
+    std::vector<uint32_t> program = {
+        0x040103e8,  // ADDI R1 R0 1000
+        0x0402002a,  // ADDI R2 R0 42
+        0x34220000,  // STW R1 R2 0
+        0x04020000,  // ADDI R2 R0 0
+        0x30220000,  // LDW R2 R1 0
+        0x44000000   // HALT
+    };
+
+    resetSimulator(sim_with_forward, rf, stats, mem, false);
+
+    // Expect mem WR & RD to hit correct address
+    EXPECT_CALL(mem, writeMemory(0x3E8, 42)).Times(1);
+    EXPECT_CALL(mem, readMemory(0x3E8)).WillOnce(Return(42));
+
+    setupMockMemory(mem, program);
+
+    while (!sim_with_forward->isProgramFinished()) {
+        sim_with_forward->cycle();
+    }
+
+    EXPECT_EQ(rf.read(1), 0x000003E8);
+    EXPECT_EQ(rf.read(2), 0x0000002A);
+    EXPECT_EQ(stats.totalInstructions(), 6);
+
+    EXPECT_EQ(sim_with_forward->getPC(), 24);
+    EXPECT_EQ(stats.getStalls(), 0);
+    EXPECT_EQ(stats.getClockCycles(), 9);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 3);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 1);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 2);
 }
