@@ -17,14 +17,14 @@ Expected stats:
 1 control flow ops
 
 Without forwarding:
-- 14 total cycles
+- 15 total cycles
 - 1 stalls
 
 With forwarding:
-- 13 total cycles
+- 14 total cycles
 - 0 stalls
 
-PC at 0x28 (32, or the 10th instruction)
+PC at 0x28 (40, or the 10th instruction)
 
 Changed registers and their contents
 R2  = -256
