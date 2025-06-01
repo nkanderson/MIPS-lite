@@ -1163,6 +1163,7 @@ TEST_F(IntegrationTest, rawDependencyChaining) {
     EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
 }
 
+// AND logical testing
 TEST_F(IntegrationTest, AND_NoForwarding) {
     std::vector<uint32_t> program = {
         0x0402ff00,  // ADDI R2 R0 -256
@@ -1235,6 +1236,90 @@ TEST_F(IntegrationTest, AND_WithForwarding) {
     EXPECT_EQ(rf.read(17), 0x000000C9);
     EXPECT_EQ(rf.read(18), 0x00000000);
     EXPECT_EQ(rf.read(19), 0x00000001);
+    EXPECT_EQ(stats.totalInstructions(), 10);
+
+    EXPECT_EQ(sim_with_forward->getPC(), 40);
+    EXPECT_EQ(stats.getStalls(), 0);
+    EXPECT_EQ(stats.getClockCycles(), 14);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 3);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 6);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 1);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
+}
+
+// OR logical testing
+TEST_F(IntegrationTest, OR_NoForwarding) {
+    std::vector<uint32_t> program = {
+        0x0402ff00,  // ADDI R2 R0 -256
+        0x0403c3c9,  // ADDI R3 R0 -15415
+        0x0404ffff,  // ADDI R4 R0 -1
+        0x18434000,  // OR R8 R2 R3
+        0x18404800,  // OR R9 R2 R0
+        0x18445000,  // OR R10 R2 R4
+        0x1c6b00ff,  // ORI R11 R3 255
+        0x1c6c0000,  // ORI R12 R3 0
+        0x1c6d0001,  // ORI R13 R3 1
+        0x44000000   // HALT
+    };
+
+    setupMockMemory(mem, program);
+
+    while (!sim_no_forward->isProgramFinished()) {
+        sim_no_forward->cycle();
+        if (stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
+    }
+
+    EXPECT_EQ(rf.read(8), 0xFFFFFFC9);
+    EXPECT_EQ(rf.read(9), 0xFFFFFF00);
+    EXPECT_EQ(rf.read(10), 0xFFFFFFFF);
+    EXPECT_EQ(rf.read(11), 0xFFFFC3FF);
+    EXPECT_EQ(rf.read(12), 0xFFFFC3C9);
+    EXPECT_EQ(rf.read(13), 0xFFFFC3C9);
+    EXPECT_EQ(stats.totalInstructions(), 10);
+
+    EXPECT_EQ(sim_no_forward->getPC(), 40);  // 10 instructions * 4
+    EXPECT_EQ(stats.getStalls(), 1);         // simulator reports 1
+    EXPECT_EQ(stats.getClockCycles(), 15);   // as measured
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 3);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 6);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 1);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
+}
+
+TEST_F(IntegrationTest, OR_WithForwarding) {
+    std::vector<uint32_t> program = {
+        0x0402ff00,  // ADDI R2 R0 -256
+        0x0403c3c9,  // ADDI R3 R0 -15415
+        0x0404ffff,  // ADDI R4 R0 -1
+        0x18434000,  // OR R8 R2 R3
+        0x18404800,  // OR R9 R2 R0
+        0x18445000,  // OR R10 R2 R4
+        0x1c6b00ff,  // ORI R11 R3 255
+        0x1c6c0000,  // ORI R12 R3 0
+        0x1c6d0001,  // ORI R13 R3 1
+        0x44000000   // HALT
+    };
+
+    resetSimulator(sim_with_forward, rf, stats, mem, true);
+    setupMockMemory(mem, program);
+
+    while (!sim_with_forward->isProgramFinished()) {
+        sim_with_forward->cycle();
+        if (stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
+    }
+
+    EXPECT_EQ(rf.read(8), 0xFFFFFFC9);
+    EXPECT_EQ(rf.read(9), 0xFFFFFF00);
+    EXPECT_EQ(rf.read(10), 0xFFFFFFFF);
+    EXPECT_EQ(rf.read(11), 0xFFFFC3FF);
+    EXPECT_EQ(rf.read(12), 0xFFFFC3C9);
+    EXPECT_EQ(rf.read(13), 0xFFFFC3C9);
     EXPECT_EQ(stats.totalInstructions(), 10);
 
     EXPECT_EQ(sim_with_forward->getPC(), 40);
