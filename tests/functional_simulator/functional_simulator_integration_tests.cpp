@@ -1330,3 +1330,87 @@ TEST_F(IntegrationTest, OR_WithForwarding) {
     EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 1);
     EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
 }
+
+// XOR logic testing
+TEST_F(IntegrationTest, XOR_NoForwarding) {
+    std::vector<uint32_t> program = {
+        0x0402ff00,  // ADDI R2 R0 -256
+        0x0403c3c9,  // ADDI R3 R0 -15415
+        0x0404ffff,  // ADDI R4 R0 -1
+        0x2843a000,  // XOR R20 R2 R3
+        0x2840a800,  // XOR R21 R2 R0
+        0x2844b000,  // XOR R22 R2 R4
+        0x2c7700ff,  // XORI R23 R3 255
+        0x2c780000,  // XORI R24 R3 0
+        0x2c790001,  // XORI R25 R3 1
+        0x44000000   // HALT
+    };
+
+    setupMockMemory(mem, program);
+
+    while (!sim_no_forward->isProgramFinished()) {
+        sim_no_forward->cycle();
+        if (stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
+    }
+
+    EXPECT_EQ(rf.read(20), 0x00003CC9);
+    EXPECT_EQ(rf.read(21), 0xFFFFFF00);
+    EXPECT_EQ(rf.read(22), 0x000000FF);
+    EXPECT_EQ(rf.read(23), 0xFFFFC336);
+    EXPECT_EQ(rf.read(24), 0xFFFFC3C9);
+    EXPECT_EQ(rf.read(25), 0xFFFFC3C8);
+    EXPECT_EQ(stats.totalInstructions(), 10);
+
+    EXPECT_EQ(sim_no_forward->getPC(), 40);
+    EXPECT_EQ(stats.getStalls(), 1);
+    EXPECT_EQ(stats.getClockCycles(), 15);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 3);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 6);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 1);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
+}
+
+TEST_F(IntegrationTest, XOR_WithForwarding) {
+    std::vector<uint32_t> program = {
+        0x0402ff00,  // ADDI R2 R0 -256
+        0x0403c3c9,  // ADDI R3 R0 -15415
+        0x0404ffff,  // ADDI R4 R0 -1
+        0x2843a000,  // XOR R20 R2 R3
+        0x2840a800,  // XOR R21 R2 R0
+        0x2844b000,  // XOR R22 R2 R4
+        0x2c7700ff,  // XORI R23 R3 255
+        0x2c780000,  // XORI R24 R3 0
+        0x2c790001,  // XORI R25 R3 1
+        0x44000000   // HALT
+    };
+
+    resetSimulator(sim_with_forward, rf, stats, mem, true);
+    setupMockMemory(mem, program);
+
+    while (!sim_with_forward->isProgramFinished()) {
+        sim_with_forward->cycle();
+        if (stats.getClockCycles() >= 1000) {
+            ADD_FAILURE() << "Simulator did not halt within 1000 cycles";
+            break;
+        }
+    }
+
+    EXPECT_EQ(rf.read(20), 0x00003CC9);
+    EXPECT_EQ(rf.read(21), 0xFFFFFF00);
+    EXPECT_EQ(rf.read(22), 0x000000FF);
+    EXPECT_EQ(rf.read(23), 0xFFFFC336);
+    EXPECT_EQ(rf.read(24), 0xFFFFC3C9);
+    EXPECT_EQ(rf.read(25), 0xFFFFC3C8);
+    EXPECT_EQ(stats.totalInstructions(), 10);
+
+    EXPECT_EQ(sim_with_forward->getPC(), 40);
+    EXPECT_EQ(stats.getStalls(), 0);
+    EXPECT_EQ(stats.getClockCycles(), 14);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 3);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 6);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 1);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
+}
