@@ -1162,3 +1162,50 @@ TEST_F(IntegrationTest, rawDependencyChaining) {
     EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 1);
     EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
 }
+
+TEST_F(IntegrationTest, AND) {
+    std::vector<uint32_t> program = {
+        0x0402ff00,  // ADDI R2 R0 -256
+        0x0403c3c9,  // ADDI R3 R0 -15415
+        0x0404ffff,  // ADDI R4 R0 -1
+        0x20437000,  // AND R14 R2 R3
+        0x20407800,  // AND R15 R2 R0
+        0x20448000,  // AND R16 R2 R4
+        0x247100ff,  // ANDI R17 R3 255
+        0x24720000,  // ANDI R18 R3 0
+        0x24730001,  // ANDI R19 R3 1
+        0x44000000   // HALT
+    };
+    setupMockMemory(mem, program);
+    // Examples for a test that reads / writes memory, not used in AND test
+    // EXPECT_CALL(mem, readMemory(0x0)).WillOnce(Return(42));
+    // EXPECT_CALL(mem, writeMemory(0x4, 100)).Times(1);
+    while (!sim->getPipelineStage(4)->isHaltInstruction()) {
+        advancePipeline(sim.get());
+    }
+    // ---------------------
+    // Check Results
+    // ---------------------
+
+    EXPECT_EQ(rf.read(14), 0x00000000);  // R14 = R2 & R3
+    EXPECT_EQ(rf.read(15), 0x00000000);  // R15 = R2 & R0 (R0 is always 0)
+    EXPECT_EQ(rf.read(16), 0x00000000);  // R16 = R2 & R4 (R4 is -1, all bits set)
+    EXPECT_EQ(rf.read(17), 0x000000ff);  // R17 = R3 & 255 (last 8 bits of R3)
+    EXPECT_EQ(rf.read(18), 0x00000000);  // R18 = R3 & 0 (R3 is -15415, but AND with 0)
+    EXPECT_EQ(rf.read(19), 0x00000001);  // R19 = R3 & 1 (last bit of R3)
+    EXPECT_EQ(stats.totalInstructions(), 10);
+
+    // Check timing & Stats <-- TODO: fix and update so it reflects **your** logical AND
+    // instructions
+    EXPECT_EQ(sim_no_forward->getPC(), 32);
+    EXPECT_EQ(stats.getStalls(), 12);
+    EXPECT_EQ(stats.getClockCycles(), 24);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC), 4);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL), 3);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW), 1);
+    EXPECT_EQ(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS), 0);
+
+    // Test forwarding
+    resetSimulator(sim_with_forward, rf, stats, mem, true);
+    setupMockMemory(mem, program);  // Re-setup mock for new simulator instance
+}
