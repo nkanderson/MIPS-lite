@@ -1,0 +1,300 @@
+MIPS-lite on  main via △ v4.0.2 
+❯ ./build/Debug/bin/mips_simulator -i traces/hex/final-demo.txt 
+Current Settings: 
+         Input Filepath:        traces/hex/final-demo.txt
+         Output Filepath:       output/traceout.txt
+         Print Memory Contents: DISABLED
+         Print Timing Info:     DISABLED
+         Forwarding:            DISABLED
+
+Instruction Counts:
+
+        Total number of instructions:   911
+        Arithmetic instructions:        375
+        Logical instructions:           61
+        Memory Access instructions:     300
+        Control Flow instructions:      175
+
+Final Register State:
+
+        Program Counter:        112
+        R11: 1044
+        R12: 1836
+        R13: 2640
+        R14: 25
+        R15: 4294967108
+        R16: 213
+        R17: 29
+        R18: 3440
+        R19: 4294967295
+        R20: 4294967294
+        R21: 4294967295
+        R22: 76
+        R23: 3
+        R24: 4294967295
+        R25: 3
+        Address: 2400, Contents: 2
+        Address: 2404, Contents: 4
+        Address: 2408, Contents: 6
+        Address: 2412, Contents: 8
+        Address: 2416, Contents: 10
+        Address: 2420, Contents: 12
+        Address: 2424, Contents: 14
+        Address: 2428, Contents: 16
+        Address: 2432, Contents: 18
+        Address: 2436, Contents: 29
+        Address: 2440, Contents: 22
+        Address: 2444, Contents: 24
+        Address: 2448, Contents: 26
+        Address: 2452, Contents: 28
+        Address: 2456, Contents: 30
+        Address: 2460, Contents: 32
+        Address: 2464, Contents: 34
+        Address: 2468, Contents: 36
+        Address: 2472, Contents: 38
+        Address: 2476, Contents: 59
+        Address: 2480, Contents: 42
+        Address: 2484, Contents: 44
+        Address: 2488, Contents: 46
+        Address: 2492, Contents: 48
+        Address: 2496, Contents: 50
+        Address: 2500, Contents: 52
+        Address: 2504, Contents: 54
+        Address: 2508, Contents: 56
+        Address: 2512, Contents: 58
+        Address: 2516, Contents: 89
+        Address: 2520, Contents: 62
+        Address: 2524, Contents: 64
+        Address: 2528, Contents: 66
+        Address: 2532, Contents: 68
+        Address: 2536, Contents: 70
+        Address: 2540, Contents: 72
+        Address: 2544, Contents: 74
+        Address: 2548, Contents: 76
+        Address: 2552, Contents: 78
+        Address: 2556, Contents: 119
+        Address: 2560, Contents: 82
+        Address: 2564, Contents: 84
+        Address: 2568, Contents: 86
+        Address: 2572, Contents: 88
+        Address: 2576, Contents: 90
+        Address: 2580, Contents: 92
+        Address: 2584, Contents: 94
+        Address: 2588, Contents: 96
+        Address: 2592, Contents: 98
+        Address: 2596, Contents: 149
+        Address: 2600, Contents: 2
+        Address: 2604, Contents: 4
+        Address: 2608, Contents: 6
+        Address: 2612, Contents: 8
+        Address: 2616, Contents: 10
+        Address: 2620, Contents: 12
+        Address: 2624, Contents: 14
+        Address: 2628, Contents: 16
+        Address: 2632, Contents: 18
+        Address: 2636, Contents: 29
+
+MIPS-lite on  main [?] via △ v4.0.2 
+❯ ./build/Debug/bin/mips_simulator -i traces/hex/final-demo.txt -t
+Current Settings: 
+         Input Filepath:        traces/hex/final-demo.txt
+         Output Filepath:       output/traceout.txt
+         Print Memory Contents: DISABLED
+         Print Timing Info:     ENABLED
+         Forwarding:            DISABLED
+
+Instruction Counts:
+
+        Total number of instructions:   911
+        Arithmetic instructions:        375
+        Logical instructions:           61
+        Memory Access instructions:     300
+        Control Flow instructions:      175
+
+Final Register State:
+
+        Program Counter:        112
+        R11: 1044
+        R12: 1836
+        R13: 2640
+        R14: 25
+        R15: 4294967108
+        R16: 213
+        R17: 29
+        R18: 3440
+        R19: 4294967295
+        R20: 4294967294
+        R21: 4294967295
+        R22: 76
+        R23: 3
+        R24: 4294967295
+        R25: 3
+        Total Stalls:   554
+        Address: 2400, Contents: 2
+        Address: 2404, Contents: 4
+        Address: 2408, Contents: 6
+        Address: 2412, Contents: 8
+        Address: 2416, Contents: 10
+        Address: 2420, Contents: 12
+        Address: 2424, Contents: 14
+        Address: 2428, Contents: 16
+        Address: 2432, Contents: 18
+        Address: 2436, Contents: 29
+        Address: 2440, Contents: 22
+        Address: 2444, Contents: 24
+        Address: 2448, Contents: 26
+        Address: 2452, Contents: 28
+        Address: 2456, Contents: 30
+        Address: 2460, Contents: 32
+        Address: 2464, Contents: 34
+        Address: 2468, Contents: 36
+        Address: 2472, Contents: 38
+        Address: 2476, Contents: 59
+        Address: 2480, Contents: 42
+        Address: 2484, Contents: 44
+        Address: 2488, Contents: 46
+        Address: 2492, Contents: 48
+        Address: 2496, Contents: 50
+        Address: 2500, Contents: 52
+        Address: 2504, Contents: 54
+        Address: 2508, Contents: 56
+        Address: 2512, Contents: 58
+        Address: 2516, Contents: 89
+        Address: 2520, Contents: 62
+        Address: 2524, Contents: 64
+        Address: 2528, Contents: 66
+        Address: 2532, Contents: 68
+        Address: 2536, Contents: 70
+        Address: 2540, Contents: 72
+        Address: 2544, Contents: 74
+        Address: 2548, Contents: 76
+        Address: 2552, Contents: 78
+        Address: 2556, Contents: 119
+        Address: 2560, Contents: 82
+        Address: 2564, Contents: 84
+        Address: 2568, Contents: 86
+        Address: 2572, Contents: 88
+        Address: 2576, Contents: 90
+        Address: 2580, Contents: 92
+        Address: 2584, Contents: 94
+        Address: 2588, Contents: 96
+        Address: 2592, Contents: 98
+        Address: 2596, Contents: 149
+        Address: 2600, Contents: 2
+        Address: 2604, Contents: 4
+        Address: 2608, Contents: 6
+        Address: 2612, Contents: 8
+        Address: 2616, Contents: 10
+        Address: 2620, Contents: 12
+        Address: 2624, Contents: 14
+        Address: 2628, Contents: 16
+        Address: 2632, Contents: 18
+        Address: 2636, Contents: 29
+
+Timing Simulator:
+
+        Total number of clock cycles: 1707
+
+MIPS-lite on  main [?] via △ v4.0.2 
+❯ ./build/Debug/bin/mips_simulator -i traces/hex/final-demo.txt -t -f
+Current Settings: 
+         Input Filepath:        traces/hex/final-demo.txt
+         Output Filepath:       output/traceout.txt
+         Print Memory Contents: DISABLED
+         Print Timing Info:     ENABLED
+         Forwarding:            ENABLED
+
+Instruction Counts:
+
+        Total number of instructions:   911
+        Arithmetic instructions:        375
+        Logical instructions:           61
+        Memory Access instructions:     300
+        Control Flow instructions:      175
+
+Final Register State:
+
+        Program Counter:        112
+        R11: 1044
+        R12: 1836
+        R13: 2640
+        R14: 25
+        R15: 4294967108
+        R16: 213
+        R17: 29
+        R18: 3440
+        R19: 4294967295
+        R20: 4294967294
+        R21: 4294967295
+        R22: 76
+        R23: 3
+        R24: 4294967295
+        R25: 3
+        Total Stalls:   60
+        Address: 2400, Contents: 2
+        Address: 2404, Contents: 4
+        Address: 2408, Contents: 6
+        Address: 2412, Contents: 8
+        Address: 2416, Contents: 10
+        Address: 2420, Contents: 12
+        Address: 2424, Contents: 14
+        Address: 2428, Contents: 16
+        Address: 2432, Contents: 18
+        Address: 2436, Contents: 29
+        Address: 2440, Contents: 22
+        Address: 2444, Contents: 24
+        Address: 2448, Contents: 26
+        Address: 2452, Contents: 28
+        Address: 2456, Contents: 30
+        Address: 2460, Contents: 32
+        Address: 2464, Contents: 34
+        Address: 2468, Contents: 36
+        Address: 2472, Contents: 38
+        Address: 2476, Contents: 59
+        Address: 2480, Contents: 42
+        Address: 2484, Contents: 44
+        Address: 2488, Contents: 46
+        Address: 2492, Contents: 48
+        Address: 2496, Contents: 50
+        Address: 2500, Contents: 52
+        Address: 2504, Contents: 54
+        Address: 2508, Contents: 56
+        Address: 2512, Contents: 58
+        Address: 2516, Contents: 89
+        Address: 2520, Contents: 62
+        Address: 2524, Contents: 64
+        Address: 2528, Contents: 66
+        Address: 2532, Contents: 68
+        Address: 2536, Contents: 70
+        Address: 2540, Contents: 72
+        Address: 2544, Contents: 74
+        Address: 2548, Contents: 76
+        Address: 2552, Contents: 78
+        Address: 2556, Contents: 119
+        Address: 2560, Contents: 82
+        Address: 2564, Contents: 84
+        Address: 2568, Contents: 86
+        Address: 2572, Contents: 88
+        Address: 2576, Contents: 90
+        Address: 2580, Contents: 92
+        Address: 2584, Contents: 94
+        Address: 2588, Contents: 96
+        Address: 2592, Contents: 98
+        Address: 2596, Contents: 149
+        Address: 2600, Contents: 2
+        Address: 2604, Contents: 4
+        Address: 2608, Contents: 6
+        Address: 2612, Contents: 8
+        Address: 2616, Contents: 10
+        Address: 2620, Contents: 12
+        Address: 2624, Contents: 14
+        Address: 2628, Contents: 16
+        Address: 2632, Contents: 18
+        Address: 2636, Contents: 29
+
+Timing Simulator:
+
+        Total number of clock cycles: 1213
+
+MIPS-lite on  main [?] via △ v4.0.2 
+❯ 
