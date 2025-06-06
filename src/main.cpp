@@ -1,17 +1,17 @@
-#include <iostream>
-#include <string>
-#include <stdexcept>
-#include <unordered_set>
-#include <set>
 #include <filesystem>
+#include <iostream>
+#include <set>
+#include <stdexcept>
+#include <string>
+#include <unordered_set>
 
 // Program Libraries
 #include "functional_simulator.h"
-#include "stats.h"
+#include "mips_instruction.h"
+#include "mips_lite_defs.h"
 #include "mips_mem_parser.h"
 #include "register_file.h"
-#include "mips_lite_defs.h"
-#include "mips_instruction.h"
+#include "stats.h"
 
 const uint32_t timeout_cycles_ = 100000;
 
@@ -24,8 +24,7 @@ const uint32_t timeout_cycles_ = 100000;
  * @param -f: Enables forwarding for functional simulator
  * @throws std::invalid_arguement if program is passed invalid values
  */
-int main (int argc, char* argv[]) {
-
+int main(int argc, char* argv[]) {
     std::string input_tracename_, output_tracename_;
 
     // Default settings for no args
@@ -43,48 +42,51 @@ int main (int argc, char* argv[]) {
             // Check if next arg exists and check if next arg is not an flag
             if (i + 1 >= argc) {
                 throw std::invalid_argument("Output filepath must be provided after -i argument.");
-            } else if (argv[i+1][0] == '-') {
+            } else if (argv[i + 1][0] == '-') {
                 throw std::invalid_argument("Missing filepath after -i argument.");
             }
 
-            input_tracename_ = argv[i+1];   // Saves input filepath into inFile
+            input_tracename_ = argv[i + 1];  // Saves input filepath into inFile
 
             // Verify that path to file exists
             if (!std::filesystem::exists(input_tracename_)) {
-                throw std::invalid_argument("Input file \"" + input_tracename_ +"\" does not exists.");
+                throw std::invalid_argument("Input file \"" + input_tracename_ +
+                                            "\" does not exists.");
             }
 
-            i++;                            // Skips arg with filepath
+            i++;  // Skips arg with filepath
         } else if (arg == "-o") {
             // Check if next arg exists and check if next arg is not an flag
             if (i + 1 >= argc) {
                 throw std::invalid_argument("Output filepath must be provided after -o argument.");
-            } else if (argv[i+1][0] == '-') {
+            } else if (argv[i + 1][0] == '-') {
                 throw std::invalid_argument("Missing filepath after -o argument.");
             }
-            output_tracename_ = argv[i+1];  // Saves output filepath into outFile
-            enable_mem_save_ = true;        // Enable memory save to file
-            i++;                            // Skips arg with filepath
+            output_tracename_ = argv[i + 1];  // Saves output filepath into outFile
+            enable_mem_save_ = true;          // Enable memory save to file
+            i++;                              // Skips arg with filepath
         } else if (arg == "-m") {
-            enable_mem_print_ = true;       // Enable memory print to stdout
+            enable_mem_print_ = true;  // Enable memory print to stdout
         } else if (arg == "-t") {
-            time_info_ = true;              // Enable printing of timing information
+            time_info_ = true;  // Enable printing of timing information
         } else if (arg == "-f") {
-            forward_ = true;                // Enable forwarding for functional simulator
+            forward_ = true;  // Enable forwarding for functional simulator
         } else {
-            throw std::invalid_argument("Argument \"" + arg + "\" to program is invalid, try again.");
+            throw std::invalid_argument("Argument \"" + arg +
+                                        "\" to program is invalid, try again.");
         }
     }
 
-    // Print Current Settings to stdout
-    #ifdef DEBUG_MODE
+// Print Current Settings to stdout
+#ifdef DEBUG_MODE
     std::cout << "Current Settings: " << "\n";
     std::cout << "\t Input Filepath:\t" << input_tracename_ << "\n";
     std::cout << "\t Output Filepath:\t" << output_tracename_ << "\n";
-    std::cout << "\t Print Memory Contents:\t" << (enable_mem_print_ ? "ENABLED" : "DISABLED") << "\n";
+    std::cout << "\t Print Memory Contents:\t" << (enable_mem_print_ ? "ENABLED" : "DISABLED")
+              << "\n";
     std::cout << "\t Print Timing Info:\t" << (time_info_ ? "ENABLED" : "DISABLED") << "\n";
     std::cout << "\t Forwarding:\t\t" << (forward_ ? "ENABLED" : "DISABLED") << "\n";
-    #endif
+#endif
 
     // Create Stats, Register File, and Memory Parser class instance
     Stats stats;
@@ -95,10 +97,10 @@ int main (int argc, char* argv[]) {
     std::unique_ptr<FunctionalSimulator> fs;
     fs = std::make_unique<FunctionalSimulator>(&rf, &stats, &mp, forward_);
 
-    while(!fs->isProgramFinished()){
+    while (!fs->isProgramFinished()) {
         fs->cycle();
 
-        if(stats.getClockCycles() >= timeout_cycles_) {
+        if (stats.getClockCycles() >= timeout_cycles_) {
             std::cerr << "Simulator did not halt within " << timeout_cycles_ << " cycles" << "\n";
             break;
         }
@@ -117,11 +119,22 @@ int main (int argc, char* argv[]) {
 
     // Print Instruction Counts
     std::cout << "\nInstruction Counts:\n\n";
-    std::cout << "\tTotal number of instructions:\t" << std::to_string(stats.totalInstructions()) << "\n";
-    std::cout << "\tArithmetic instructions:\t" << std::to_string(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC)) << "\n";
-    std::cout << "\tLogical instructions:\t\t" << std::to_string(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL)) << "\n";
-    std::cout << "\tMemory Access instructions:\t" << std::to_string(stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS)) << "\n";
-    std::cout << "\tControl Flow instructions:\t" << std::to_string(stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW)) << "\n";
+    std::cout << "\tTotal number of instructions:\t" << std::to_string(stats.totalInstructions())
+              << "\n";
+    std::cout << "\tArithmetic instructions:\t"
+              << std::to_string(stats.getCategoryCount(mips_lite::InstructionCategory::ARITHMETIC))
+              << "\n";
+    std::cout << "\tLogical instructions:\t\t"
+              << std::to_string(stats.getCategoryCount(mips_lite::InstructionCategory::LOGICAL))
+              << "\n";
+    std::cout << "\tMemory Access instructions:\t"
+              << std::to_string(
+                     stats.getCategoryCount(mips_lite::InstructionCategory::MEMORY_ACCESS))
+              << "\n";
+    std::cout << "\tControl Flow instructions:\t"
+              << std::to_string(
+                     stats.getCategoryCount(mips_lite::InstructionCategory::CONTROL_FLOW))
+              << "\n";
 
     // Print Final Register State
     std::set<uint8_t> final_registers_(stats.getRegisters().begin(), stats.getRegisters().end());
@@ -133,7 +146,8 @@ int main (int argc, char* argv[]) {
 
     // Print registers that have been used
     for (auto item = final_registers_.begin(); item != final_registers_.end(); item++) {
-        std::cout << "\tR" << std::to_string(*item) << ": " << std::to_string(rf.read(*item)) << "\n";
+        std::cout << "\tR" << std::to_string(*item) << ": "
+                  << std::to_string(static_cast<int32_t>(rf.read(*item))) << "\n";
     }
 
     // Print Total Number of Stalls
@@ -142,18 +156,21 @@ int main (int argc, char* argv[]) {
     }
 
     // Print Final Memory State
-    std::set<uint32_t> final_memory_(stats.getMemoryAddresses().begin(), stats.getMemoryAddresses().end());
+    std::set<uint32_t> final_memory_(stats.getMemoryAddresses().begin(),
+                                     stats.getMemoryAddresses().end());
 
     // Print memory locations and values that have been accessed
     for (auto item = final_memory_.begin(); item != final_memory_.end(); item++) {
-        std::cout << "\tAddress: " << std::to_string(*item) << ", Contents: " << std::to_string(mp.readMemory(*item)) << "\n";
+        std::cout << "\tAddress: " << std::to_string(*item)
+                  << ", Contents: " << std::to_string(mp.readMemory(*item)) << "\n";
     }
 
     // Print timing info if enabled
     if (time_info_) {
         std::cout << "\nTiming Simulator:\n\n";
-        std::cout << "\tTotal number of clock cycles: " << std::to_string(stats.getClockCycles()) << "\n";
-    } 
+        std::cout << "\tTotal number of clock cycles: " << std::to_string(stats.getClockCycles())
+                  << "\n";
+    }
 
     return 0;
 }
